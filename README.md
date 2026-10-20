@@ -24,7 +24,7 @@ Team: **Ankita Patra** and **Priyanshu Singh**
 4. Outdoor temperature from Open-Meteo on the same chart
 5. CameraX photos with a SHA-256 hash taken at capture
 6. Issue tracker with a timeline
-7. Dated notice from a template, inspection request, repair-deadline reminders
+7. Dated repair-notice templates, inspection-request guidance, and conditional follow-up reminders based on documented issue status and applicable Massachusetts housing guidance.
 8. On-device PDF packet
 
 ## Tech stack
