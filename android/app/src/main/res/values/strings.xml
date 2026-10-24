@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Habitable</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_issues">Issues</string>
+    <string name="nav_sensors">Sensors</string>
+    <string name="nav_more">More</string>
+    <string name="cd_back">Go back</string>
+
+    <!-- Home -->
+    <string name="home_current_reading">Living room · now</string>
+    <string name="home_open_issues">Open issues</string>
+    <string name="home_no_issues">No open issues. Your apartment is within the legal heat range.</string>
+    <string name="home_below_limit">%1$.1f° below the %2$d°F limit</string>
+    <string name="home_above_limit">%1$.1f° above the %2$d°F limit</string>
+    <string name="home_hours_below">below limit, last 16 h</string>
+    <string name="home_outside_now">outside now</string>
+    <string name="home_report_issue">Report issue</string>
+    <string name="home_sensor_live">Sensor live</string>
+    <string name="home_sensor_simulated">Simulated</string>
+    <string name="home_sensor_off">Sensor off</string>
+
+    <!-- Sensors -->
+    <string name="sensors_title">Sensors</string>
+    <string name="sensors_subtitle_sim">Simulated thermometer · demo data</string>
+    <string name="sensors_subtitle_ble">Living room thermometer · BLE</string>
+    <string name="sensors_lowest">lowest</string>
+    <string name="sensors_below">below the limit</string>
+    <string name="sensors_data_checks">Data checks</string>
+    <string name="sensors_all_clear">All clear</string>
+    <string name="sensors_flags">%1$d flagged</string>
+    <string name="sensors_replay_night">Replay cold night</string>
+    <string name="sensors_start">Start monitoring</string>
+    <string name="sensors_stop">Stop monitoring</string>
+    <string name="sensors_empty">No readings yet. Start monitoring or replay the demo night.</string>
+
+    <!-- Chart -->
+    <string name="chart_legend_indoor">Indoor</string>
+    <string name="chart_legend_limit">MA limit 68 / 64</string>
+    <string name="chart_legend_outdoor">Outdoor (Open-Meteo)</string>
+    <string name="chart_legend_below">Below limit</string>
+    <string name="chart_cd">Temperature chart. Indoor temperature compared with the Massachusetts legal limit and outdoor weather.</string>
+
+    <!-- Weather -->
+    <string name="weather_loading">Loading outdoor weather…</string>
+    <string name="weather_error">Outdoor weather unavailable. Showing indoor readings only.</string>
+    <string name="weather_stale">Outdoor weather from cache (last updated %1$s)</string>
+    <string name="weather_retry">Retry</string>
+
+    <!-- Issues -->
+    <string name="issues_title">Issues</string>
+    <string name="issues_empty">No issues yet. The app opens one automatically when the heat drops below the legal limit, or you can report one.</string>
+    <string name="issue_opened_auto">Opened automatically from sensor readings</string>
+    <string name="issue_status_open">Open</string>
+    <string name="issue_status_notice_sent">Notice sent</string>
+    <string name="issue_status_inspection_requested">Inspection requested</string>
+    <string name="issue_status_certified">Violation certified</string>
+    <string name="issue_status_resolved">Resolved</string>
+    <string name="issue_timeline">Timeline</string>
+    <string name="issue_next_step">Next step</string>
+    <string name="issue_action_send_notice">Send notice</string>
+    <string name="issue_action_request_inspection">Escalate → Request inspection</string>
+    <string name="issue_action_reminder">Escalate → Send reminder</string>
+    <string name="issue_action_resolve">Mark resolved</string>
+    <string name="issue_new_title">Report an issue</string>
+    <string name="issue_category">Category</string>
+    <string name="issue_title_label">Title</string>
+    <string name="issue_description_label">What is happening?</string>
+    <string name="issue_save">Save issue</string>
+    <string name="issue_title_required">Give the issue a short title</string>
+
+    <!-- Setup -->
+    <string name="setup_title">Set up your apartment</string>
+    <string name="setup_intro">Habitable keeps your records on this phone. Your address is only used to fetch outdoor weather and to label your PDF.</string>
+    <string name="setup_address">Street address</string>
+    <string name="setup_unit">Unit / apartment</string>
+    <string name="setup_city">City</string>
+    <string name="setup_landlord_name">Landlord name</string>
+    <string name="setup_landlord_email">Landlord email</string>
+    <string name="setup_continue">Continue</string>
+    <string name="setup_address_required">Address is required</string>
+    <string name="setup_email_invalid">That email address doesn\'t look right</string>
+
+    <!-- More -->
+    <string name="more_title">More</string>
+    <string name="more_apartment">Apartment</string>
+    <string name="more_sensor_mode">Sensor mode</string>
+    <string name="more_sensor_mode_sim">Simulated (demo)</string>
+    <string name="more_sensor_mode_ble">Bluetooth LE thermometer</string>
+    <string name="more_sync">Sync with backend</string>
+    <string name="more_sync_now">Sync now</string>
+    <string name="more_last_sync">Last sync: %1$s</string>
+    <string name="more_never_synced">Never synced</string>
+    <string name="more_privacy">Privacy</string>
+    <string name="more_privacy_body">Photos and your address stay on this phone. Only temperature readings and photo hashes are sent to our server, over HTTPS, and only when you sign in. Habitable is a documentation tool, not legal advice.</string>
+    <string name="more_about">About</string>
+    <string name="more_about_body">Habitable · CS 501, Boston University · Ankita Patra and Priyanshu Singh</string>
+    <string name="more_clear_demo">Clear demo data</string>
+
+    <!-- Notification -->
+    <string name="notif_channel_name">Sensor monitoring</string>
+    <string name="notif_channel_desc">Shows while Habitable is recording temperature readings.</string>
+    <string name="notif_title">Habitable is recording temperature</string>
+    <string name="notif_text">%1$.1f°F · limit %2$d°F</string>
+    <string name="notif_violation_channel_name">Heat violations</string>
+    <string name="notif_violation_title">Heat below the legal limit</string>
+    <string name="notif_violation_text">%1$.1f°F recorded. Habitable opened an issue for you.</string>
+
+    <!-- Misc -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="not_legal_advice">Documentation only, not legal advice.</string>
+</resources>

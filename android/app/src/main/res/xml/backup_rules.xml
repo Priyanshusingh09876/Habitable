@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Evidence must not silently leave the device via Auto Backup. The user exports it deliberately. -->
+<full-backup-content>
+    <exclude domain="database" path="habitable.db" />
+    <exclude domain="file" path="evidence" />
+</full-backup-content>

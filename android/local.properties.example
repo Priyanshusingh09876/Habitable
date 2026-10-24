@@ -1,0 +1,9 @@
+# Copy this file to local.properties (git-ignored) and adjust.
+# Android Studio normally writes sdk.dir for you.
+sdk.dir=/path/to/Android/sdk
+
+# Base URL of the Habitable backend. 10.0.2.2 reaches the host from the emulator.
+habitable.backendUrl=http://10.0.2.2:3000/
+
+# Start in simulated-sensor mode (true) or try a real BLE thermometer (false).
+habitable.simulatedSensor=true

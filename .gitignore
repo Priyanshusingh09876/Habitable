@@ -1,0 +1,31 @@
+# --- Secrets & per-developer config (never commit) ---
+android/local.properties
+backend/.env
+*.keystore
+*.jks
+
+# --- Android / Gradle ---
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/captures/
+android/.kotlin/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# --- Node ---
+backend/node_modules/
+npm-debug.log*
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Thermometer glyph on the navy adaptive-icon background. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,22c-5.5,0 -10,4.5 -10,10v26.3c-4.3,3 -7,7.9 -7,13.2c0,9.4 7.6,17 17,17s17,-7.6 17,-17c0,-5.3 -2.7,-10.2 -7,-13.2V32c0,-5.5 -4.5,-10 -10,-10zM54,28c2.2,0 4,1.8 4,4v29.6l1.5,0.9c3.4,2 5.5,5.6 5.5,9.5c0,6.1 -4.9,11 -11,11s-11,-4.9 -11,-11c0,-3.9 2.1,-7.5 5.5,-9.5l1.5,-0.9V32c0,-2.2 1.8,-4 4,-4z" />
+    <path
+        android:fillColor="#FFE4572E"
+        android:pathData="M54,50v15.2c-2.9,0.9 -5,3.6 -5,6.8c0,3.9 3.1,7 7,7s7,-3.1 7,-7c0,-3.2 -2.1,-5.9 -5,-6.8V50h-4z" />
+</vector>
