@@ -95,7 +95,7 @@ class SimulatedSensorSource(
             return (0 until count).map { i ->
                 val hours = i * intervalMillis / 3_600_000.0
                 val base = interpolate(hours)
-                val noise = 0.12 * sin(i * 0.9)
+                val noise = if (i == count - 1) 0.0 else 0.12 * sin(i * 0.9)
                 SensorSample(
                     tempF = round1(base + noise),
                     humidityPct = round1(42 + 4 * sin(hours / 3.0)),

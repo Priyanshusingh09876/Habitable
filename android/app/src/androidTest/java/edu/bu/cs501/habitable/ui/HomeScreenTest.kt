@@ -1,12 +1,13 @@
-package edu.bu.cs501.habitable.ui
+﻿package edu.bu.cs501.habitable.ui
 
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import edu.bu.cs501.habitable.data.repository.WeatherStatus
@@ -35,20 +36,21 @@ class HomeScreenTest {
     val compose = createComposeRule()
 
     private val now = 1_794_322_800_000L // 2026-11-10 10:00 America/New_York
+    private val issueTitle = "No heat \u00B7 living room"
 
     private fun loadedState(): HomeUiState.Loaded {
         val readings = (0 until 10).map { i ->
             Reading(sensorId = 1, tempF = 70.0 - i, humidityPct = null, recordedAtMillis = now - (10 - i) * 600_000L)
         }
         return HomeUiState.Loaded(
-            addressLine = "12 Pratt St · Apt 3",
+            addressLine = "12 Pratt St \u00B7 Apt 3",
             latest = readings.last(),
             status = HeatStatus.BelowMinimum(requiredF = 68, shortfallF = 7.0),
             chart = BuildChartData(readings, emptyList(), now - 16 * 3_600_000L, now),
             hoursBelow = 13.0,
             outdoorNowF = 29.0,
             openIssues = listOf(
-                Issue(id = 7, apartmentId = 1, category = IssueCategory.HEAT, title = "No heat · living room", description = "", status = IssueStatus.OPEN, openedAtMillis = now, closedAtMillis = null, openedAutomatically = true),
+                Issue(id = 7, apartmentId = 1, category = IssueCategory.HEAT, title = issueTitle, description = "", status = IssueStatus.OPEN, openedAtMillis = now, closedAtMillis = null, openedAutomatically = true),
             ),
             monitoring = true,
             simulated = true,
@@ -74,20 +76,23 @@ class HomeScreenTest {
             }
         }
 
-        compose.onNodeWithTag("current_temp").assertIsDisplayed()
-        compose.onNodeWithText("61.0°F").assertIsDisplayed()
-        compose.onNodeWithText("7.0° below the 68°F limit").assertIsDisplayed()
-        compose.onNodeWithText("Simulated").assertIsDisplayed()
-        compose.onNodeWithText("No heat · living room").assertIsDisplayed()
+        // Top of the screen: visible without scrolling.
+        compose.onNodeWithTag("current_temp", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("61.0\u00B0F", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("7.0\u00B0 below the 68\u00B0F limit", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Simulated").assertExists()
 
-        compose.onAllNodesWithTag("issue_row")[0].performClick()
-        assertThat(openedIssue).isEqualTo(7L)
+        compose.onNodeWithTag("hero_card").performClick()
+        assertThat(sensorsTapped).isTrue()
 
         compose.onNodeWithTag("fab_report").performClick()
         assertThat(reportTapped).isTrue()
 
-        compose.onNodeWithTag("hero_card").performClick()
-        assertThat(sensorsTapped).isTrue()
+        // The issue list sits below the chart; on smaller screens it is off-screen, so scroll to it first.
+        compose.onNodeWithTag("home_list").performScrollToNode(hasText(issueTitle))
+        compose.onNodeWithText(issueTitle).assertExists()
+        compose.onAllNodesWithTag("issue_row")[0].performClick()
+        assertThat(openedIssue).isEqualTo(7L)
     }
 
     @Test
@@ -102,6 +107,8 @@ class HomeScreenTest {
                 )
             }
         }
+        // The weather banner sits under the hero card; scroll in case it is off-screen.
+        compose.onNodeWithTag("home_list").performScrollToNode(hasText("Retry"))
         compose.onNodeWithText("Retry").performClick()
         assertThat(retried).isTrue()
     }

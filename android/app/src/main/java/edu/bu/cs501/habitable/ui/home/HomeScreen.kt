@@ -97,7 +97,7 @@ fun HomeContent(
                 CircularProgressIndicator()
             }
             is HomeUiState.Loaded -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding).testTag("home_list"),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
