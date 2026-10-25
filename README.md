@@ -172,4 +172,6 @@ Habitable's own code is released under the [MIT License](LICENSE).
 
 ## Generative AI use
 
-We used a generative AI assistant during planning and implementation. The full statement of what it was used for, what was written or verified by hand, and representative prompts is in [docs/AI_USE.md](docs/AI_USE.md). Every file in this repository has been read, run or tested by the team, and both of us can explain any part of it.
+Generative AI was used for guidance with Compose code organization, UI refinement, debugging, test-case review, and README wording. I reviewed, understood, tested, and adjusted the final code used in this application.
+
+
