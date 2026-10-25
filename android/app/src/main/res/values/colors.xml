@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="navy">#FF0F1B2D</color>
-    <color name="paper">#FFFBFCFD</color>
+    <color name="paper">#FFF3F5F9</color>
     <color name="heat">#FFE4572E</color>
     <color name="ic_launcher_background">#FF0F1B2D</color>
 </resources>

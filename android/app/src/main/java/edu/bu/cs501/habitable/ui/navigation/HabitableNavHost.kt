@@ -12,12 +12,18 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Sensors
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,6 +48,7 @@ import edu.bu.cs501.habitable.ui.issues.NewIssueScreen
 import edu.bu.cs501.habitable.ui.more.MoreScreen
 import edu.bu.cs501.habitable.ui.sensors.SensorsScreen
 import edu.bu.cs501.habitable.ui.setup.SetupScreen
+import edu.bu.cs501.habitable.ui.theme.HabitableColors
 import kotlinx.serialization.Serializable
 
 /**
@@ -86,9 +93,14 @@ fun HabitableNavHost(
     val showBar = tabs.any { tab -> destination?.hierarchy?.any(tab.matches) == true }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (showBar) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp,
+                    modifier = Modifier.shadow(12.dp, spotColor = HabitableColors.Navy.copy(alpha = 0.18f)),
+                ) {
                     tabs.forEach { tab ->
                         val selected = destination?.hierarchy?.any(tab.matches) == true
                         val label = stringResource(tab.labelRes)
@@ -102,7 +114,14 @@ fun HabitableNavHost(
                                 }
                             },
                             icon = { Icon(if (selected) tab.selected else tab.unselected, contentDescription = null) },
-                            label = { Text(label) },
+                            label = { Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color.White,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                indicatorColor = HabitableColors.Navy,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         )
                     }
                 }
