@@ -1,5 +1,9 @@
 package edu.bu.cs501.habitable.ui.issuedetail
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +43,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -48,6 +53,7 @@ import edu.bu.cs501.habitable.domain.model.IssueStatus
 import edu.bu.cs501.habitable.domain.model.NextAction
 import edu.bu.cs501.habitable.domain.model.TimelineEvent
 import edu.bu.cs501.habitable.domain.model.TimelineEventType
+import edu.bu.cs501.habitable.domain.usecase.NoticeTemplate
 import edu.bu.cs501.habitable.ui.components.EmptyState
 import edu.bu.cs501.habitable.ui.components.SectionHeader
 import edu.bu.cs501.habitable.ui.components.StatusChip
@@ -61,6 +67,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     // rememberSaveable so a half-typed note survives rotation.
     var note by rememberSaveable { mutableStateOf("") }
 
@@ -101,7 +108,12 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                 when (s.nextAction) {
                     NextAction.NONE -> Unit
                     else -> Button(
-                        onClick = { viewModel.advance() },
+                        onClick = {
+                            // Notice and reminder steps open the tenant's email app with the letter filled in.
+                            // The tenant reviews it and presses Send; the app only logs the step.
+                            viewModel.letterFor(s)?.let { openEmail(context, it) }
+                            viewModel.advance()
+                        },
                         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("btn_advance"),
                     ) { Text(actionLabel(s.nextAction)) }
                 }
@@ -119,6 +131,26 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                 Text(stringResource(R.string.not_legal_advice), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+/** Opens an email app with the letter pre-filled; falls back to the share sheet if none is installed. */
+private fun openEmail(context: Context, notice: NoticeTemplate.Notice) {
+    val email = Intent(Intent.ACTION_SENDTO).apply {
+        data = Uri.parse("mailto:")
+        if (notice.to.isNotBlank()) putExtra(Intent.EXTRA_EMAIL, arrayOf(notice.to))
+        putExtra(Intent.EXTRA_SUBJECT, notice.subject)
+        putExtra(Intent.EXTRA_TEXT, notice.body)
+    }
+    try {
+        context.startActivity(email)
+    } catch (e: ActivityNotFoundException) {
+        val share = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, notice.subject)
+            putExtra(Intent.EXTRA_TEXT, "To: ${notice.to}\n\n${notice.body}")
+        }
+        context.startActivity(Intent.createChooser(share, "Send notice"))
     }
 }
 

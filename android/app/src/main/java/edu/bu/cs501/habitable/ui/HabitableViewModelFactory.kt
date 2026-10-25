@@ -32,7 +32,7 @@ class HabitableViewModelFactory(
         modelClass.isAssignableFrom(NewIssueViewModel::class.java) ->
             NewIssueViewModel(container.issues)
         modelClass.isAssignableFrom(IssueDetailViewModel::class.java) ->
-            IssueDetailViewModel(issueId, container.issues)
+            IssueDetailViewModel(issueId, container.issues, container.apartments)
         modelClass.isAssignableFrom(SetupViewModel::class.java) ->
             SetupViewModel(container.apartments, container.settings)
         modelClass.isAssignableFrom(MoreViewModel::class.java) ->
