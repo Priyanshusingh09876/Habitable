@@ -7,10 +7,10 @@ $ErrorActionPreference = "Continue"
 $root = $PSScriptRoot
 $results = @()
 
-Write-Host "`n=== 1/3  Android unit tests (57) ===" -ForegroundColor Cyan
+Write-Host "`n=== 1/3  Android unit tests (66) ===" -ForegroundColor Cyan
 Push-Location "$root\android"
 .\gradlew testDebugUnitTest --console=plain
-$results += [pscustomobject]@{ Suite = "Android unit (57)"; Passed = ($LASTEXITCODE -eq 0) }
+$results += [pscustomobject]@{ Suite = "Android unit (66)"; Passed = ($LASTEXITCODE -eq 0) }
 
 if (-not $SkipDevice) {
     Write-Host "`n=== 2/3  Android on-device + Compose UI tests (6) - emulator must be open ===" -ForegroundColor Cyan

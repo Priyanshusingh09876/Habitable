@@ -17,11 +17,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -41,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.bu.cs501.habitable.R
 import edu.bu.cs501.habitable.domain.model.Issue
 import edu.bu.cs501.habitable.domain.model.IssueStatus
+import edu.bu.cs501.habitable.domain.usecase.IssueSearch
 import edu.bu.cs501.habitable.ui.components.CategoryBadge
 import edu.bu.cs501.habitable.ui.components.EmptyState
 import edu.bu.cs501.habitable.ui.components.EscalationProgress
@@ -55,8 +60,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private enum class IssueFilter(val label: String) { ALL("All"), OPEN("Active"), RESOLVED("Resolved") }
-
 @Composable
 fun IssuesScreen(
     viewModel: IssuesViewModel,
@@ -64,13 +67,10 @@ fun IssuesScreen(
     onReportIssue: () -> Unit,
 ) {
     val issues by viewModel.issues.collectAsStateWithLifecycle()
-    var filter by rememberSaveable { mutableStateOf(IssueFilter.ALL) }
+    var filter by rememberSaveable { mutableStateOf(IssueSearch.Scope.ALL) }
+    var query by rememberSaveable { mutableStateOf("") }
     val active = issues.count { it.status != IssueStatus.RESOLVED }
-    val shown = when (filter) {
-        IssueFilter.ALL -> issues
-        IssueFilter.OPEN -> issues.filter { it.status != IssueStatus.RESOLVED }
-        IssueFilter.RESOLVED -> issues.filter { it.status == IssueStatus.RESOLVED }
-    }
+    val shown = IssueSearch.apply(issues, query, filter)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -100,8 +100,24 @@ fun IssuesScreen(
                 )
             }
             item {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it.take(60) },
+                    placeholder = { Text("Search issues") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("issues_search"),
+                )
+            }
+            item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IssueFilter.entries.forEach { f ->
+                    IssueSearch.Scope.entries.forEach { f ->
                         FilterChip(
                             selected = filter == f,
                             onClick = { filter = f },

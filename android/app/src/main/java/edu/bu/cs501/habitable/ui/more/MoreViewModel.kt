@@ -47,12 +47,22 @@ class MoreViewModel(
 
     fun syncNow() = viewModelScope.launch {
         busy.value = true
-        message.value = when (val r = sync.syncReadings()) {
+        val r = sync.syncReadings()
+        // Issues go up after readings; skip them if we're offline or signed out.
+        val issuesPart = when (r) {
+            is SyncRepository.Result.Failed, SyncRepository.Result.NotSignedIn -> ""
+            else -> when (val i = sync.syncIssues()) {
+                is SyncRepository.Result.Synced -> " · ${i.count} ${if (i.count == 1) "issue" else "issues"} backed up"
+                is SyncRepository.Result.Failed -> " · issues not backed up (${i.message})"
+                else -> ""
+            }
+        }
+        message.value = when (r) {
             is SyncRepository.Result.Synced -> "Uploaded ${r.count} readings"
             SyncRepository.Result.NothingToSync -> "Everything is already synced"
             SyncRepository.Result.NotSignedIn -> "Sign in to sync"
             is SyncRepository.Result.Failed -> r.message
-        }
+        } + issuesPart
         busy.value = false
     }
 

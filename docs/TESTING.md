@@ -1,20 +1,20 @@
 # Test plan and results — Project Update 1
 
-**76 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
+**85 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
 Run on: Windows 11, Android Studio, Pixel XL emulator (API 33 / Android 13), Node 22. Last full run: November 8, 2026.
 
 | Suite | Tests | How to run | Report |
 | --- | --- | --- | --- |
-| Android unit tests (JVM) | 57 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
+| Android unit tests (JVM) | 66 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
 | Android instrumented + Compose UI (emulator) | 6 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
 | Backend API | 13 | `cd backend` → `npm test` | Terminal output (`# pass 13`) |
-| **Total** | **76** | | |
+| **Total** | **85** | | |
 
 CI (`.github/workflows/ci.yml`) runs the backend tests and the Android build + unit tests on every push to `main`.
 
 ---
 
-## 1. Android unit tests — 57
+## 1. Android unit tests — 66
 
 Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
@@ -113,12 +113,36 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U54 | non-heat issue quotes the description | Other issue types get the tenant's own words |
 | U55 | missing apartment still produces a usable letter | No crash if setup is incomplete |
 
-### IssueSyncMappingTest — 2 · what an issue looks like on the server
+### IssueSyncMappingTest — 2 · what an issue looks like on the server (Ankita)
 
 | # | Test | What it proves |
 | --- | --- | --- |
 | U56 | issue maps to the fields the backend validates, without the description | JSON keys match `PUT /issues`; the tenant's private description never leaves the phone |
 | U57 | long titles are cut to the backend limit and resolved issues keep closedAt | No 400 errors from long titles; closing an issue syncs its end date |
+
+### IssueSearchTest — 3 · searching the issue list (Ankita)
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U58 | empty query with ALL returns every issue in order | No accidental filtering |
+| U59 | active hides resolved and resolved shows only resolved | The three scope chips are correct |
+| U60 | query matches title, description and category, ignoring case | Search finds issues by any of their words |
+
+### TimelineExportTest — 3 · sharing an issue as text (Ankita)
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U61 | header has title, address, status and opened time | The shared text identifies the problem and place |
+| U62 | events are listed oldest first with labels and notes | Timeline reads in order even if stored out of order |
+| U63 | missing apartment and a closed issue are handled | No crash; closed date included |
+
+### IssueClockTest — 3 · days open and since notice (Ankita)
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U64 | counts calendar days open and since the first notice | The first notice starts the count, not a later reminder |
+| U65 | same day and no notice read naturally | "Open since today" instead of "0 days" |
+| U66 | a resolved issue stops counting at its close date | Resolved issues don't keep ageing |
 
 ---
 
@@ -188,7 +212,7 @@ Fill in the Result column yourselves after running each one, and change any "Pas
 
 ## Evidence for the update
 
-- Screenshot of the unit-test report (57 passed)
+- Screenshot of the unit-test report (66 passed)
 - Screenshot of the instrumented-test report (6 passed)
 - Screenshot of the backend `npm test` output (13 passed)
 - Screenshot of the Android Studio Run window with the green test tree
