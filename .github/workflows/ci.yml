@@ -35,6 +35,9 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: android-actions/setup-android@v3
+        with:
+          # The default also installs 'tools', which Google removed from the SDK.
+          packages: platform-tools
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       - run: ./gradlew assembleDebug testDebugUnitTest --no-daemon --stacktrace
