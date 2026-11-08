@@ -6,14 +6,16 @@ import edu.bu.cs501.habitable.data.remote.backend.AuthRequest
 import edu.bu.cs501.habitable.data.remote.backend.HabitableApi
 import edu.bu.cs501.habitable.data.remote.backend.ReadingDto
 import edu.bu.cs501.habitable.data.remote.backend.ReadingsBatch
+import edu.bu.cs501.habitable.data.remote.backend.toDto
 import edu.bu.cs501.habitable.data.settings.SettingsRepository
 import kotlinx.coroutines.flow.first
 import java.io.IOException
 
 /**
- * Pushes unsynced readings to the Habitable backend in batches. Readings are
- * the only data that leaves the phone in Update 1. Works offline-first: if the
- * network is down the rows simply stay unsynced and the next run picks them up.
+ * Pushes unsynced readings to the Habitable backend in batches, then backs up
+ * the issue list (category, title, status, dates; never descriptions, photos or
+ * the address). Works offline-first: if the network is down the rows simply
+ * stay unsynced and the next run picks them up.
  */
 class SyncRepository(
     private val db: HabitableDatabase,
@@ -23,6 +25,7 @@ class SyncRepository(
 ) {
     private val readings = db.readingDao()
     private val sensors = db.sensorDao()
+    private val issues = db.issueDao()
 
     sealed interface Result {
         data class Synced(val count: Int) : Result
@@ -80,6 +83,30 @@ class SyncRepository(
             Result.Failed("Backend unreachable")
         } catch (e: Exception) {
             Result.Failed(e.message ?: "Sync failed")
+        }
+    }
+
+    /**
+     * Back up every issue with PUT /issues. The server upserts by clientId, so
+     * sending an unchanged issue again is harmless; a status change (e.g. after
+     * Send notice) simply overwrites the server copy.
+     */
+    suspend fun syncIssues(): Result {
+        val token = settings.settings.first().authToken ?: return Result.NotSignedIn
+        val all = issues.getAll()
+        if (all.isEmpty()) return Result.NothingToSync
+        return try {
+            all.forEach { api.upsertIssue("Bearer $token", it.toDomain().toDto()) }
+            Result.Synced(all.size)
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 401) {
+                settings.setAuth(null, null)
+                Result.NotSignedIn
+            } else Result.Failed("Server error ${e.code()}")
+        } catch (e: IOException) {
+            Result.Failed("Backend unreachable")
+        } catch (e: Exception) {
+            Result.Failed(e.message ?: "Issue sync failed")
         }
     }
 }

@@ -140,6 +140,10 @@ interface IssueDao {
     @Query("SELECT * FROM issues WHERE status != 'RESOLVED' ORDER BY opened_at DESC")
     fun observeOpen(): Flow<List<IssueEntity>>
 
+    /** Every issue, for backing up to the server. Issues are few, so no paging. */
+    @Query("SELECT * FROM issues ORDER BY opened_at")
+    suspend fun getAll(): List<IssueEntity>
+
     @Query("SELECT COUNT(*) FROM issues WHERE status != 'RESOLVED'")
     fun observeOpenCount(): Flow<Int>
 

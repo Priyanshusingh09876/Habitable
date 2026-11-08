@@ -5,6 +5,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.PUT
 
 /**
  * The thin Habitable backend (backend/ in this repo). JWT in the Authorization
@@ -26,6 +27,13 @@ interface HabitableApi {
         @Header("Authorization") bearer: String,
         @Body body: ReadingsBatch,
     ): ReadingsAck
+
+    /** Upsert by clientId (the Room id), so re-sending the same issue never duplicates it. */
+    @PUT("issues")
+    suspend fun upsertIssue(
+        @Header("Authorization") bearer: String,
+        @Body body: IssueDto,
+    ): IssueAck
 
     @POST("evidence/anchor")
     suspend fun anchor(
@@ -51,6 +59,18 @@ data class ReadingDto(
 
 @Serializable data class ReadingsBatch(val readings: List<ReadingDto>)
 @Serializable data class ReadingsAck(val accepted: Int, val clientIds: List<Long>)
+
+@Serializable
+data class IssueDto(
+    val clientId: Long,
+    val category: String,
+    val title: String,
+    val status: String,
+    val openedAt: Long,
+    val closedAt: Long? = null,
+)
+
+@Serializable data class IssueAck(val id: Long)
 
 @Serializable data class AnchorRequest(val sha256: String, val kind: String, val capturedAt: Long)
 @Serializable data class AnchorResponse(val sha256: String, val serverTimestamp: Long)
