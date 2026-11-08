@@ -50,7 +50,8 @@ Sizes: **S** < 1 day · **M** 1–3 days · **L** 3–5 days.
 | Unit tests for rules, detector, quality, simulator, cross-check, chart data, notice letter, issue sync | 1 | Done (57 tests) |
 | Instrumented tests: Room pipeline, Compose Home flow | 1 | Done (6 tests, run locally) |
 | Backend API + 13 tests | 1 | Done |
-| Issue backup: `PUT /issues` from Sync now | 1 | Done (Ankita, PR `feat/evidence-issue-sync`) |
+| Issue backup: `PUT /issues` from Sync now | 1 | Done (Ankita, closes #7) |
+| Issue tools: search, share timeline, days-open clock | 1 | Done (Ankita) |
 | UI redesign: theme, hero card, escalation tracker | 1 | Done |
 | Backlog mirrored as GitHub Issues + Project board; branch protection on `main` | 1 | Done Nov 8 |
 | Geocode address for Open-Meteo | 2 | To do |

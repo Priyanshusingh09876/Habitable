@@ -42,7 +42,7 @@ The flow: **simulated thermometer → Room → heat rules → chart with Open-Me
 | --- | --- | --- |
 | Demo | Steps 1–4 and 9 (sensing, Room pipeline, rules, chart, Open-Meteo) | Steps 5–8 and 10 (issues, notice email, escalation, issue sync) |
 | Slides | Architecture, persistence + API evidence, risks | Backlog, scrum-master report, repository evidence, plan to Update 2 |
-| Code questions | `domain/`, `data/sensor`, `ReadingsRepository`, `WeatherRepository`, backend | `ui/issues`, `ui/issuedetail`, `IssuesRepository`, `NoticeTemplate`, `SyncRepository.syncIssues` |
+| Code questions | `domain/`, `data/sensor`, `ReadingsRepository`, `WeatherRepository`, readings sync, backend | `ui/issues`, `ui/issuedetail`, `IssuesRepository`, `NoticeTemplate`, `SyncRepository.syncIssues`, `IssueSearch`, `TimelineExport`, `IssueClock` |
 
 **The tamper question, in one line:** "We can't stop someone putting the sensor in a fridge. We make sure the record shows it, and we never let anyone hide it." Readings are insert-only; impossible jumps, gaps and indoor-tracks-outdoor periods are flagged; the inspector's thermometer stays the official proof.
 
@@ -70,6 +70,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md). The short version:
 - Notice letter template + email intent with share-sheet fallback (part of US-6).
 - Backend API with 13 tests, readings sync and issue backup (US-9, local).
 - Redesigned UI: theme, status-coloured hero card, escalation tracker, evidence-quality checks.
+- Issue tools (Ankita): search the issue list, share an issue's timeline as text, and a clock showing days open and days since the first notice.
 
 **In progress**
 - BLE thermometer on real hardware (US-2): decoder done and tested; device ordered.
@@ -107,14 +108,14 @@ No features were added beyond the approved scope; none were dropped.
 | Usability | Legal wording read as legal advice | Mitigated | "Documentation only, not legal advice" on Setup, Sensors, Issue detail and in every letter; steps phrased as "may apply". |
 | Usability | Charts and colours not readable for everyone | Open | Accessibility pass in sprint 3; status always shown as text as well as colour. |
 | Schedule | Two-person team, PDF and camera both in sprint 2–3 | Watching | Sprint 2 = camera + hashes; sprint 3 = PDF + reminders. Stretch items untouched until the beta works. |
-| Process | Early commits went straight to `main` from one machine | Fixed Nov 8 | Branch protection on, branches + reviewed PRs from now on (§6). |
+| Process | Early commits went straight to `main` from one machine | Fixed Nov 8 | Branches + pull requests linked to issues, `main` protected (§6). |
 
 ## 6. Repository and teamwork evidence
 
 - **Backlog on GitHub**: every story in BACKLOG.md is a GitHub Issue with an owner, size label and milestone (Update 1 / Update 2 / Final); the **Habitable board** (GitHub Projects) has To do / In progress / Done columns.
-- **Branches and pull requests**: `feat/evidence-issue-sync` (Ankita) and `docs/update1` (Priyanshu), each reviewed by the other person before merging. Earlier work (Oct 20 – Oct 24) was committed directly to `main` from one machine while we were setting up; we moved to the branch-and-PR rule in our working agreement on November 8 and turned on branch protection for `main`.
+- **Branches and pull requests**: since November 8 every change is a branch and a pull request linked to its issue. Priyanshu: `docs/update1` (#19) and `fix/ci-android-sdk` (#20, a CI failure found and fixed). Ankita: `feat/issues-sync-search-share-clock`, four commits: issue backup to the server (closes #7), issue search, sharing an issue's timeline as text, and the days-open / days-since-notice clock, with 11 unit tests; reviewed by Priyanshu. Earlier work (Oct 20 – Oct 24) was committed directly to `main` from Priyanshu's machine while we were setting up.
 - **CI**: GitHub Actions runs the backend tests and the Android build + unit tests on every push (`.github/workflows/ci.yml`).
-- **Scrum master**: Priyanshu (weeks of Oct 20, Nov 3), Ankita (weeks of Oct 27, Nov 10). This week Ankita runs the board and the review of each PR.
+- **Scrum master**: Priyanshu (weeks of Oct 20, Nov 3), Ankita (weeks of Oct 27, Nov 10). This week Ankita runs the board.
 - **Cadence**: daily WhatsApp check-in; Tuesday planning and Friday review calls.
 - **Working agreement**: [WORKING_AGREEMENT.md](WORKING_AGREEMENT.md). AI use disclosed in [AI_USE.md](AI_USE.md).
 

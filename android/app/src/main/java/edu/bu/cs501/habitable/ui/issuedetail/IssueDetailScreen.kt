@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Thermostat
@@ -74,6 +75,7 @@ import edu.bu.cs501.habitable.domain.model.IssueStatus
 import edu.bu.cs501.habitable.domain.model.NextAction
 import edu.bu.cs501.habitable.domain.model.TimelineEvent
 import edu.bu.cs501.habitable.domain.model.TimelineEventType
+import edu.bu.cs501.habitable.domain.usecase.IssueClock
 import edu.bu.cs501.habitable.domain.usecase.NoticeTemplate
 import edu.bu.cs501.habitable.domain.usecase.TimelineExport
 import edu.bu.cs501.habitable.ui.components.CategoryBadge
@@ -160,6 +162,14 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                             style = MaterialTheme.typography.labelSmall.copy(fontFamily = EvidenceFont),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                    // How long the tenant has waited, in calendar days.
+                    val clock = IssueClock.summarize(s.issue, s.timeline, System.currentTimeMillis())
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("issue_clock")) {
+                        Icon(Icons.Filled.Schedule, contentDescription = null, tint = HabitableColors.Heat, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(IssueClock.label(clock), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                     }
                     if (s.issue.description.isNotBlank()) {
                         Spacer(Modifier.height(12.dp))
