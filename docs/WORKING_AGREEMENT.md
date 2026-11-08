@@ -41,6 +41,8 @@ The scrum master runs the two weekly calls, keeps the GitHub Project board curre
 - CI must be green before merge (backend tests, Android build + unit tests). Instrumented tests run locally before opening a PR that touches Room or UI.
 - Secrets never enter the repo. `local.properties` and `.env` are git-ignored; `*.example` files are committed.
 
+**Amendment, November 8:** from October 20 to 24 we committed directly to `main` from one machine while setting the project up, which broke the rule above. From November 8 the rule is enforced by GitHub branch protection on `main` (pull request + one approval required).
+
 ## Definition of done (for a story)
 
 1. Acceptance criteria in BACKLOG.md met.

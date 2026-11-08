@@ -1,20 +1,20 @@
 # Test plan and results — Project Update 1
 
-**74 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
-Run on: Windows 11, Android Studio, Pixel XL emulator (API 33 / Android 13), Node 22. Date: October 24, 2026.
+**76 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
+Run on: Windows 11, Android Studio, Pixel XL emulator (API 33 / Android 13), Node 22. Last full run: November 8, 2026.
 
 | Suite | Tests | How to run | Report |
 | --- | --- | --- | --- |
-| Android unit tests (JVM) | 55 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
+| Android unit tests (JVM) | 57 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
 | Android instrumented + Compose UI (emulator) | 6 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
 | Backend API | 13 | `cd backend` → `npm test` | Terminal output (`# pass 13`) |
-| **Total** | **74** | | |
+| **Total** | **76** | | |
 
 CI (`.github/workflows/ci.yml`) runs the backend tests and the Android build + unit tests on every push to `main`.
 
 ---
 
-## 1. Android unit tests — 55
+## 1. Android unit tests — 57
 
 Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
@@ -113,6 +113,13 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U54 | non-heat issue quotes the description | Other issue types get the tenant's own words |
 | U55 | missing apartment still produces a usable letter | No crash if setup is incomplete |
 
+### IssueSyncMappingTest — 2 · what an issue looks like on the server
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U56 | issue maps to the fields the backend validates, without the description | JSON keys match `PUT /issues`; the tenant's private description never leaves the phone |
+| U57 | long titles are cut to the backend limit and resolved issues keep closedAt | No 400 errors from long titles; closing an issue syncs its end date |
+
 ---
 
 ## 2. Android instrumented tests — 6 (on the emulator)
@@ -173,7 +180,7 @@ Run in order on a fresh install (App info → Storage → Clear storage). Backen
 | M10 | Notice email | Tap Send notice | Email app opens with landlord address, subject and dated letter filled in; back in the app, status is "Notice sent" | Pass |
 | M10b | Escalate | Tap Escalate → Request inspection | Status chip and button text change; timeline gains an event | Pass |
 | M11 | Error state | Turn on airplane mode → Sensors → Replay cold night | "Outdoor weather from cache" banner with Retry; indoor chart still draws | Pass |
-| M12 | Sync | Airplane mode off → More → sign in → Sync now, then Sync now again | "Uploaded N readings", then "Everything is already synced" | Pass |
+| M12 | Sync | Airplane mode off → More → sign in → Sync now, then Sync now again | "Uploaded N readings · 1 issue backed up", then "Everything is already synced · 1 issue backed up"; `GET /issues` on the laptop shows the issue with its current status | Pass |
 
 Fill in the Result column yourselves after running each one, and change any "Pass" that didn't pass.
 
@@ -181,7 +188,7 @@ Fill in the Result column yourselves after running each one, and change any "Pas
 
 ## Evidence for the update
 
-- Screenshot of the unit-test report (51 passed)
+- Screenshot of the unit-test report (57 passed)
 - Screenshot of the instrumented-test report (6 passed)
 - Screenshot of the backend `npm test` output (13 passed)
 - Screenshot of the Android Studio Run window with the green test tree

@@ -1,87 +1,124 @@
 # Project Update 1 — November 10, 2026
 
 **Working vertical slice and first end-to-end data path.**
-Team: Ankita Patra, Priyanshu Singh · Scrum master this week: Ankita · Repo: github.com/Priyanshusingh09876/Habitable
+Team: Ankita Patra, Priyanshu Singh · **Scrum master this week: Ankita Patra** · Repo: github.com/Priyanshusingh09876/Habitable
+Slides: [Update1_Slides.pdf](Update1_Slides.pdf) · Tests: [TESTING.md](TESTING.md) · Backlog: [BACKLOG.md](BACKLOG.md)
 
-## 1. What we're demonstrating (≈ 4 minutes of working software)
+## 0. Requirement checklist
 
-The flow: **simulated thermometer → Room → heat rules → chart with Open-Meteo weather → automatic heat issue → Escalate → sync to backend.** Every arrow is real code in this repo; nothing on screen is hard-coded.
+| Ron's requirement | Where we show it |
+| --- | --- |
+| End-to-end user flow in a running app | Live demo, steps 1–10 below |
+| Compose UI + navigation | 7 Compose destinations, type-safe Navigation Compose, bottom bar + detail screens (no XML views or fragments) |
+| Architecture: ViewModel, repository, async/persistent state | §2 and the architecture slide; `HomeViewModel` combines Room flows into one `StateFlow<HomeUiState>` |
+| API **and** persistence evidence | Open-Meteo (third-party API, cached in Room) · Room (7 tables) · DataStore (settings, onboarding) · our own Express API (sync) |
+| Completed / in progress / remaining work | §3 |
+| Prioritised backlog, scrum master, risks, blockers, scope changes | §3–§5, BACKLOG.md, GitHub Issues + Project board |
+| Repository evidence | §6: commits, branches, pull requests, issues, project board, CI |
+| Privacy, permissions, API, device, usability, schedule risks | §5 |
+| Backup plan | §1, last paragraph |
+| Both members substantive | "Who presents what" in §1; each of us has a PR merged for this update |
+
+## 1. What we're demonstrating (≈ 5 minutes of working software)
+
+The flow: **simulated thermometer → Room → heat rules → chart with Open-Meteo weather → automatic heat issue → notice email → Escalate → sync readings and issues to our backend.** Every arrow is real code in this repo; nothing on screen is hard-coded.
 
 | Step | What the audience sees | What is happening underneath |
 | --- | --- | --- |
-| 1. Fresh install | *Set up your apartment* form | DataStore `onboarded=false` picks the start destination; validation runs in `SetupViewModel`; `ApartmentRepository.save()` writes `apartments` + a `sensors` row to Room. |
-| 2. Home | Empty chart, "Sensor off", no issues | `HomeViewModel` combines five Room flows into one `HomeUiState`; empty state shown. |
-| 3. Sensors → **Start monitoring** | Chip turns to "Simulated", a persistent notification appears, a new point lands every 30 s | `SensorForegroundService` collects `SimulatedSensorSource(Live)`; each sample goes through `ReadingsRepository.ingest()`. |
-| 4. Rotate the phone | Chart and stats survive | ViewModel + `collectAsStateWithLifecycle`; nothing re-fetched. |
-| 5. Sensors → **Replay cold night** | 97 readings appear at once; chart shows the 68→64→68 step limit, orange shading where the room was below it, the blue Open-Meteo line; "13 h below the limit"; Data checks card: *0 impossible jumps · 0 gaps · 0 weather mismatches · All clear* | Same `ingest()` path × 97. `ViolationDetector` opens/closes two violation runs (the limit drops to 64 °F at 11 PM, so 64.6 °F is briefly legal). After 2 h below the limit an **issue opens automatically** and the second run links to the same issue. |
-| 6. Home | "61.4 °F · 6.6° below the 68 °F limit", "No heat · living room · Opened automatically" | Rules re-evaluated on the latest reading; open issues flow from Room. |
-| 7. Tap the issue | Timeline: *Below 68 °F limit (opened automatically)* → *Temperature back above…* → *Below 64 °F limit again*; button says **Send notice** | `IssueDetailViewModel` combines issue + timeline + violations; `IssueStatus.nextAction` names the button. |
-| 8. Tap **Send notice**, then **Escalate → Request inspection** | Status chip changes; timeline grows; button text changes each time | `IssuesRepository.advance()` moves one state along the legal order inside a Room transaction. |
-| 9. Airplane mode, back to Sensors | Weather banner: *Outdoor weather from cache* with Retry; indoor chart still draws | `WeatherRepository.refresh()` fails → `WeatherStatus.Error(hasCache=true)`; the chart reads outdoor rows from Room, never from the response. |
-| 10. More → Sign in → **Sync now** | "Uploaded 97 readings"; `GET /readings/count` on the laptop shows 97 | `SyncRepository` posts a batch to `POST /readings`; server dedupes by `(sensor, recordedAt)`; rows marked `synced`. |
+| 1. Fresh install | *Set up your apartment* form with validation | DataStore `onboarded=false` picks the start destination; `SetupViewModel` validates; `ApartmentRepository.save()` writes `apartments` + a `sensors` row to Room. |
+| 2. Sensors → **Start monitoring** | "Live" chip with a pulsing dot, a persistent notification, a new point every 30 s | `SensorForegroundService` collects `SimulatedSensorSource(Live)`; each sample goes through `ReadingsRepository.ingest()`. |
+| 3. Rotate the phone | Chart and stats survive | ViewModel + `collectAsStateWithLifecycle`; nothing re-fetched. |
+| 4. Sensors → **Replay cold night** | 97 readings; chart shows the 68 → 64 → 68 °F step limit, shading where the room was below it, the blue Open-Meteo line; "13 h below"; Evidence quality: *0 jumps · 0 gaps · 0 weather mismatches* | Same `ingest()` path × 97, in one Room transaction each. `ViolationDetector` opens/closes violation runs; after 2 h below the limit an **issue opens automatically**. |
+| 5. Home | The hero card turns red: "61.4 °F · 6.6° below the 68 °F limit"; issue "No heat · living room · opened automatically" | `HeatRules.evaluate()` on the latest reading; open issues are a Room `Flow`. |
+| 6. Tap the issue | Escalation tracker (Open → Notice → Inspection → Certified), hours below / lowest temperature, timeline | `IssueDetailViewModel` combines issue + timeline + violations + apartment. |
+| 7. **Send notice** | The email app opens addressed to the landlord, with a dated letter citing 105 CMR 410.180 and the hours below the limit; status becomes *Notice sent* | `NoticeTemplate.build()` (pure Kotlin, unit-tested) → `ACTION_SENDTO` intent; `IssuesRepository.advance()` logs the step. |
+| 8. **Request inspection** | Tracker moves to step 3; timeline grows | Same state machine, one Room transaction per step. |
+| 9. Airplane mode → Sensors | *Outdoor weather from cache* banner with Retry; chart still draws | `WeatherRepository.refresh()` fails → `WeatherStatus.Error(hasCache=true)`; chart reads outdoor rows from Room. |
+| 10. More → sign in → **Sync now** | "Uploaded 97 readings · 1 issue backed up"; a second tap: "Everything is already synced" | `SyncRepository` posts readings to `POST /readings` (server dedupes by sensor + time) and upserts issues with `PUT /issues`. Laptop terminal shows the server copy (`GET /readings/count`, `GET /issues`). |
 
-**Who presents what:** Priyanshu drives steps 1–5 and 9 (sensing, chart, weather, architecture). Ankita drives steps 6–8 and 10 (issues, Escalate, sync) and the backlog/risks slides. Both answer questions.
+**Who presents what**
 
-**The tamper question, in one line:** "We can't stop someone putting the sensor in a fridge. We make sure the record shows that they did, and we never let anyone hide it." Readings are insert-only; impossible jumps, gaps and indoor-tracks-outdoor periods are flagged and printed; the inspector's thermometer stays the official proof.
+| | Priyanshu | Ankita |
+| --- | --- | --- |
+| Demo | Steps 1–4 and 9 (sensing, Room pipeline, rules, chart, Open-Meteo) | Steps 5–8 and 10 (issues, notice email, escalation, issue sync) |
+| Slides | Architecture, persistence + API evidence, risks | Backlog, scrum-master report, repository evidence, plan to Update 2 |
+| Code questions | `domain/`, `data/sensor`, `ReadingsRepository`, `WeatherRepository`, backend | `ui/issues`, `ui/issuedetail`, `IssuesRepository`, `NoticeTemplate`, `SyncRepository.syncIssues` |
 
-Backup if the emulator misbehaves: screenshots in `docs/ui_mockups_*.png` and the unit/instrumented test output from CI.
+**The tamper question, in one line:** "We can't stop someone putting the sensor in a fridge. We make sure the record shows it, and we never let anyone hide it." Readings are insert-only; impossible jumps, gaps and indoor-tracks-outdoor periods are flagged; the inspector's thermometer stays the official proof.
+
+**Backup plan:** a 2-minute screen recording of steps 1–10 (`docs/demo_backup.mp4`, kept locally if over GitHub's size limit), screenshots in `docs/screenshots/`, and the HTML test reports. If the emulator stalls we switch to the recording and keep talking.
 
 ## 2. Architecture as built
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full picture. The short version:
+See [ARCHITECTURE.md](ARCHITECTURE.md). The short version:
 
-- **UI** — 7 Compose destinations under type-safe Navigation Compose: Setup, Home, Issues, Sensors, More (tabs), New issue, Issue detail. Stateless `*Content` composables take a `UiState` so they can be tested with fixed data.
-- **State** — one ViewModel per screen, a single `StateFlow<UiState>` built with `combine` from Room flows. Forms (setup, new issue) keep their text in the ViewModel, so rotation never loses input.
-- **Data** — Room is the source of truth (7 tables). Repositories are the only things that touch DAOs. `ReadingsRepository.ingest()` is the pipeline: quality flags → insert → violation step → auto-issue, in one transaction.
-- **Domain** — pure Kotlin, no Android imports: `HeatRules`, `ViolationDetector`, `DataQualityChecker`, `WeatherCrossCheck` (indoor within 4 °F of a ≤50 °F outdoors for ≥1 h ⇒ suspicious span), `LimitSeries`, `BuildChartData`. 36 JVM unit tests cover their edges (10:59 vs 11:01 PM, Sept 14 vs 15, May 31 vs June 1, fridge jumps, gaps).
-- **Device** — `SensorSource` interface with `SimulatedSensorSource` (live drift or cold-night replay) and `BleSensorSource` (scanning + Govee-style decoder, unverified on hardware yet). A foreground service keeps sampling with the screen off.
-- **API** — Open-Meteo through Retrofit + kotlinx.serialization, cached in `outdoor_readings`; loading / error / stale states in the UI.
-- **Backend** — Express + JWT + bcrypt; PostgreSQL via `pg`, or an in-memory store with the same interface for tests and laptop demos. 13 API tests pass (`npm test`).
+- **UI** — Jetpack Compose + Material 3 only. 7 destinations under type-safe Navigation Compose (`@Serializable` routes): Setup, Home, Issues, Sensors, More (tabs), New issue, Issue detail. Stateless `*Content` composables take a `UiState`, so they can be UI-tested with fixed data.
+- **State** — one ViewModel per screen exposing a single `StateFlow<UiState>` built with `combine` from Room flows and `stateIn(WhileSubscribed)`. Forms keep their text in the ViewModel, so rotation never loses input.
+- **Data** — Room is the source of truth (7 tables). Repositories are the only classes that touch DAOs. `ReadingsRepository.ingest()` is the pipeline: quality flags → insert → violation step → auto-issue, in one transaction. DataStore holds settings and the sign-in token.
+- **Domain** — pure Kotlin, no Android imports: `HeatRules`, `ViolationDetector`, `DataQualityChecker`, `WeatherCrossCheck`, `LimitSeries`, `BuildChartData`, `NoticeTemplate`. Covered by JVM unit tests at the legal boundaries (6:59 vs 7:00 AM, 11:00 vs 11:01 PM, Sept 14 vs 15, May 31 vs June 1).
+- **Device** — `SensorSource` interface with `SimulatedSensorSource` and `BleSensorSource` (scan + Govee-format decoder, not yet verified on hardware). A foreground service (`connectedDevice` type) keeps sampling with the screen off.
+- **APIs** — Open-Meteo via Retrofit + kotlinx.serialization, cached in `outdoor_readings` with loading / error / stale states. Our backend: Express + JWT + bcrypt, PostgreSQL or an in-memory store with the same interface.
 
-## 3. Backlog status
+## 3. Work status
 
-| ID | Story | Status | Owner |
-| --- | --- | --- | --- |
-| US-1 | Account + apartment setup | **Done** (local). Backend register/login done; app sign-in wired on the More screen. | Both |
-| US-2 | Pair BLE thermometer + placement photo | **Partial**: scanning + decoder written; placement photo not started (needs CameraX, US-4). | Priyanshu |
-| US-3 | Chart vs. legal limit (sprint 1) | **Done**: step limit, violation shading, outdoor line, four ranges. | Priyanshu |
-| US-4 | Photos hashed at capture | Not started (sprint 2). | Ankita |
-| US-5 | Issues + automatic heat issue | **Done**: manual report, auto-open after 2 h, timeline, Escalate state machine. | Ankita |
-| US-6 | Notice + reminders | **Partial**: state transitions and timeline events done; letter template, share sheet and WorkManager deadline reminders are sprint 2. | Ankita |
-| US-7 | PDF packet | Not started (sprint 2–3). | Ankita |
-| US-8 | Simulated sensor for demos | **Done**: live mode + cold-night replay through the real pipeline. | Priyanshu |
-| US-9 | Backend deployed | **Done locally** with tests; Render + Neon deployment this week. | Priyanshu |
-| US-10 | Open-Meteo outdoor overlay | **Done**: cached, offline-safe, retry UI. | Priyanshu |
+**Completed**
+- Setup with validation and persistence (US-1, local); sign-in on the More screen.
+- Simulated sensor with live and replay modes through the real pipeline (US-8).
+- Chart against the step limit with shading and outdoor weather, four ranges (US-3).
+- Open-Meteo integration with caching and offline states (US-10).
+- Issues: manual report, automatic heat issue after 2 h, timeline, escalation state machine (US-5).
+- Notice letter template + email intent with share-sheet fallback (part of US-6).
+- Backend API with 13 tests, readings sync and issue backup (US-9, local).
+- Redesigned UI: theme, status-coloured hero card, escalation tracker, evidence-quality checks.
 
-Full acceptance criteria: [BACKLOG.md](BACKLOG.md).
+**In progress**
+- BLE thermometer on real hardware (US-2): decoder done and tested; device ordered.
+- Backend deployment to Render + Neon (US-9).
+- Notices synced as their own records (`POST /issues/notices`) (US-6).
+
+**Remaining for Update 2 (Nov 24, feature-complete beta)**
+- CameraX photos with SHA-256 at capture + placement photo (US-4, US-2).
+- On-device PDF evidence packet (US-7).
+- WorkManager reminders after certification (US-6).
+- Address geocoding; accessibility pass (TalkBack, 200 % font, contrast); instrumented tests in CI.
+
+How this supports the approved scope: the slice is the core of the proposal — *record → detect → notify* — built end to end before any of the evidence extras, as Ron asked on October 6.
 
 ## 4. Decisions and scope changes since the proposal
 
-1. **Chart drawn with Compose Canvas instead of Vico.** The two things that make the chart useful as evidence — a limit line that *steps* at 7 AM / 11:01 PM with no slope, and shading only where indoor < limit — are not something Vico's line layer does out of the box, and the same drawing code can later render into the PDF's `Canvas`. Vico remains the fallback if the custom chart becomes a maintenance burden. (Scope-neutral; asking for instructor sign-off.)
-2. **One cold night = one issue.** A violation that pauses at 11 PM (when the limit drops) and resumes later attaches to the open automatic heat issue rather than opening a second one. Proposal said "a heat issue opens automatically"; this is the same promise with less noise.
-3. **Live simulator samples every 30 s, replay uses the real 10-minute cadence.** Purely so a live demo shows motion; the production interval constant is unchanged.
-4. **Geocoding deferred.** Setup stores Boston's coordinates for Open-Meteo; a real address → lat/long lookup is a small sprint-2 task.
+1. **Chart drawn with Compose Canvas instead of Vico.** The limit must *step* at 7 AM / 11:01 PM with no slope, and shading must cover only indoor < limit; the same drawing code will render into the PDF's `Canvas`. Scope-neutral; we'd like Ron's sign-off.
+2. **One cold night = one issue.** A violation that pauses at 11 PM (when the limit drops) and resumes later attaches to the open automatic heat issue instead of opening a second one.
+3. **Notice sent by the tenant's own email app** (`ACTION_SENDTO`) rather than from our server, so the tenant reviews and sends it and we never hold their email credentials.
+4. **Live simulator samples every 30 s; replay uses the real 10-minute cadence** so the live demo shows motion. The production interval is unchanged.
+5. **Geocoding deferred** to sprint 2: setup stores Boston's coordinates for Open-Meteo.
+
+No features were added beyond the approved scope; none were dropped.
 
 ## 5. Risks and blockers
 
-| Risk / blocker | Status | Mitigation |
-| --- | --- | --- |
-| Android kills BLE sampling in the background | Open | Foreground service implemented; gaps are flagged in the data; simulator is the demo path. Will test overnight on two phone brands in sprint 2. |
-| **BLE thermometer not yet in hand** (blocker for US-2 hardware verification) | **Blocker** | Ordered; decoder written against the published Govee format and unit-tested on synthetic payloads. Simulated mode is first-class so nothing else waits on it. |
-| Open-Meteo down during a demo | Mitigated | Cached rows + stale banner + retry; demo step 9 shows it. |
-| Chart work slipping | Closed | Done in sprint 1 as requested on Oct 6. |
-| Legal copy read as advice | Mitigated | "Documentation only, not legal advice" on Setup, Sensors, Issue detail, More; §127L steps described as "may apply". |
-| Two-person scope | Watching | Sprint 2 is CameraX + hashes + notice letter + PDF skeleton; stretch items untouched until the beta works. |
-| Instrumented tests need an emulator in CI | Open | CI runs unit tests + build; instrumented tests run locally before each PR. Evaluating `reactivecircus/android-emulator-runner` for Update 2. |
+| Type | Risk / blocker | Status | Mitigation |
+| --- | --- | --- | --- |
+| Device | Android may stop BLE sampling in the background | Open | Foreground service; gaps are flagged, not hidden; simulator is the demo path. Overnight test on two phone brands in sprint 2. |
+| Device | **BLE thermometer not yet in hand** | **Blocker** for US-2 hardware check | Decoder written against the published Govee format and unit-tested on synthetic payloads; simulated mode means nothing else waits on it. |
+| Permissions | Notification, Bluetooth and (later) camera permissions denied | Open | Asked only when needed (`POST_NOTIFICATIONS` when monitoring starts; `BLUETOOTH_SCAN` with `neverForLocation`, BLE mode only). The app still records if notifications are denied. |
+| Privacy | Address, photos and landlord details are sensitive | Mitigated | They stay on the phone; only readings and an issue summary (category, title, status, dates — never the description) sync, and only after sign-in. Room and the evidence folder are excluded from Android backup. No real data in the repo. |
+| API | Open-Meteo down or rate-limited during the demo | Mitigated | Cached rows, stale banner and Retry (demo step 9). |
+| API | Our backend runs on a laptop; data is lost when the in-memory store restarts | Open | Deploy to Render + Neon PostgreSQL in sprint 2; the app is offline-first, so nothing on the phone is lost. |
+| Usability | Legal wording read as legal advice | Mitigated | "Documentation only, not legal advice" on Setup, Sensors, Issue detail and in every letter; steps phrased as "may apply". |
+| Usability | Charts and colours not readable for everyone | Open | Accessibility pass in sprint 3; status always shown as text as well as colour. |
+| Schedule | Two-person team, PDF and camera both in sprint 2–3 | Watching | Sprint 2 = camera + hashes; sprint 3 = PDF + reminders. Stretch items untouched until the beta works. |
+| Process | Early commits went straight to `main` from one machine | Fixed Nov 8 | Branch protection on, branches + reviewed PRs from now on (§6). |
 
-## 6. Teamwork evidence
+## 6. Repository and teamwork evidence
 
-- **Repository**: one repo, protected `main`, feature branches (`feat/sensing-*`, `feat/evidence-*`), every PR reviewed by the other person. Commit history shows both of us across the slice.
-- **Scrum master**: Priyanshu (weeks of Oct 20, Nov 3), Ankita (weeks of Oct 27, Nov 10).
-- **Cadence**: daily WhatsApp check-in, two 30-minute calls per week (Tue/Fri), GitHub Issues + Project board as the backlog.
-- **Working agreement**: [WORKING_AGREEMENT.md](WORKING_AGREEMENT.md).
+- **Backlog on GitHub**: every story in BACKLOG.md is a GitHub Issue with an owner, size label and milestone (Update 1 / Update 2 / Final); the **Habitable board** (GitHub Projects) has To do / In progress / Done columns.
+- **Branches and pull requests**: `feat/evidence-issue-sync` (Ankita) and `docs/update1` (Priyanshu), each reviewed by the other person before merging. Earlier work (Oct 20 – Oct 24) was committed directly to `main` from one machine while we were setting up; we moved to the branch-and-PR rule in our working agreement on November 8 and turned on branch protection for `main`.
+- **CI**: GitHub Actions runs the backend tests and the Android build + unit tests on every push (`.github/workflows/ci.yml`).
+- **Scrum master**: Priyanshu (weeks of Oct 20, Nov 3), Ankita (weeks of Oct 27, Nov 10). This week Ankita runs the board and the review of each PR.
+- **Cadence**: daily WhatsApp check-in; Tuesday planning and Friday review calls.
+- **Working agreement**: [WORKING_AGREEMENT.md](WORKING_AGREEMENT.md). AI use disclosed in [AI_USE.md](AI_USE.md).
 
 ## 7. Plan to Update 2 (Nov 24, feature-complete beta)
 
-**Sprint 2 (Nov 10–17):** CameraX capture with SHA-256 at capture (US-4) · placement photo at sensor setup (US-2) · notice letter template + share sheet + `/issues/notices` sync (US-6) · geocode the address · deploy backend to Render/Neon · overnight BLE test on real hardware.
-**Sprint 3 (Nov 17–24):** on-device PDF packet with the chart drawn from the same `TemperatureChart` code (US-7) · WorkManager deadline reminders · empty/error states audit · TalkBack pass · tablet/landscape layout check · instrumented tests in CI.
+**Sprint 2 (Nov 10–17):** CameraX capture with SHA-256 at capture (US-4) · placement photo (US-2) · notices synced as records (US-6) · geocode the address · deploy backend to Render/Neon · overnight BLE test on real hardware.
+**Sprint 3 (Nov 17–24):** on-device PDF packet drawn with the same chart code (US-7) · WorkManager reminders · empty/error-state audit · TalkBack and font-scale pass · instrumented tests in CI.
