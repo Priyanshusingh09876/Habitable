@@ -141,7 +141,9 @@ Full description, data model and the end-to-end data path: [docs/ARCHITECTURE.md
 
 ## Project documents
 
-- [docs/UPDATE1.md](docs/UPDATE1.md) — Nov 10 update: demo script, what's done, backlog status, risks, blockers, decisions
+- [docs/UPDATE1.md](docs/UPDATE1.md) — Nov 10 update: requirement checklist, demo script, what's done, backlog status, risks, blockers, decisions
+- [docs/Update1_Slides.pdf](docs/Update1_Slides.pdf) — Nov 10 slide deck
+- [docs/TESTING.md](docs/TESTING.md) — test plan and results (76 automated + 12 manual)
 - [docs/BACKLOG.md](docs/BACKLOG.md) — user stories, acceptance criteria, owners, sprint status
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layers, data model, data flow, accessibility and privacy notes
 - [docs/WORKING_AGREEMENT.md](docs/WORKING_AGREEMENT.md) — roles, scrum-master rotation, branching and review rules
@@ -150,7 +152,7 @@ Full description, data model and the end-to-end data path: [docs/ARCHITECTURE.md
 
 ## Privacy and security
 
-- Photos and the apartment address never leave the phone. Only temperature readings (and, later, photo hashes) are uploaded, and only after the user signs in.
+- Photos and the apartment address never leave the phone. Only temperature readings, an issue summary (category, title, status, dates — never the description) and, later, photo hashes are uploaded, and only after the user signs in.
 - Room's database and the evidence folder are excluded from Android Auto Backup (`res/xml/backup_rules.xml`).
 - Secrets live in `android/local.properties` and `backend/.env`, both git-ignored; samples are provided. The only secret on the device is the backend's own short-lived JWT.
 - Permissions are requested only when needed: `POST_NOTIFICATIONS` when monitoring starts, `BLUETOOTH_SCAN/CONNECT` only in BLE mode. Simulated mode asks for nothing.
@@ -172,6 +174,6 @@ Habitable's own code is released under the [MIT License](LICENSE).
 
 ## Generative AI use
 
-Generative AI was used for guidance with Compose code organization, UI refinement, debugging, test-case review, and README wording. I reviewed, understood, tested, and adjusted the final code used in this application.
+We used a generative AI assistant (Claude) throughout this project, including to draft first versions of much of the code, tests and documentation, and for debugging, UI refinement and test-case review. We reviewed, ran, tested and adjusted everything that ships, and both of us can explain any part of it. The full statement — what AI was used for, what we did ourselves, and representative prompts — is in [docs/AI_USE.md](docs/AI_USE.md).
 
 

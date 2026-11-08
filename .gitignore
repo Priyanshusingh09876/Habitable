@@ -31,3 +31,6 @@ Thumbs.db
 *.swp
 
 .idea/
+
+# demo recording is too big for git; keep it local
+docs/demo_backup.mp4

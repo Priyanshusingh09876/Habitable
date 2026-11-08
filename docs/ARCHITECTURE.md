@@ -118,7 +118,7 @@ Tab switches save and restore each tab's own back stack (`popUpTo(start) { saveS
 
 ## Privacy and security
 
-- Photos (sprint 2) and addresses stay on the device; only readings and hashes sync, after explicit sign-in.
+- Photos (sprint 2) and addresses stay on the device; only readings, an issue summary (no description) and photo hashes sync, after explicit sign-in.
 - `backup_rules.xml` / `data_extraction_rules.xml` exclude the database and evidence folder from cloud backup.
 - Secrets: `local.properties` and `.env` are git-ignored; examples are committed. The device stores only the backend's own JWT in DataStore.
 - Input validation on both ends; server responses never reveal whether an email exists.
