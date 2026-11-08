@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Verified
@@ -74,6 +75,7 @@ import edu.bu.cs501.habitable.domain.model.NextAction
 import edu.bu.cs501.habitable.domain.model.TimelineEvent
 import edu.bu.cs501.habitable.domain.model.TimelineEventType
 import edu.bu.cs501.habitable.domain.usecase.NoticeTemplate
+import edu.bu.cs501.habitable.domain.usecase.TimelineExport
 import edu.bu.cs501.habitable.ui.components.CategoryBadge
 import edu.bu.cs501.habitable.ui.components.ChipTone
 import edu.bu.cs501.habitable.ui.components.EmptyState
@@ -108,6 +110,15 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                 title = { Text("Issue", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back)) }
+                },
+                actions = {
+                    val loaded = state as? IssueDetailUiState.Loaded
+                    if (loaded != null) {
+                        IconButton(
+                            onClick = { shareTimeline(context, loaded) },
+                            modifier = Modifier.testTag("btn_share_timeline"),
+                        ) { Icon(Icons.Filled.Share, contentDescription = "Share timeline") }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 windowInsets = WindowInsets(0, 0, 0, 0),
@@ -256,6 +267,17 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
             }
         }
     }
+}
+
+/** Shares the issue and its whole timeline as plain text (legal aid, an inspector, a friend). */
+private fun shareTimeline(context: Context, s: IssueDetailUiState.Loaded) {
+    val text = TimelineExport.build(s.issue, s.apartment, s.timeline, System.currentTimeMillis())
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Habitable record: ${s.issue.title}")
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(Intent.createChooser(send, "Share timeline"))
 }
 
 /** Opens an email app with the letter pre-filled; falls back to the share sheet if none is installed. */
