@@ -1,14 +1,14 @@
 # Test plan and results — Project Update 1
 
-**85 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
+**86 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
 Run on: Windows 11, Android Studio, Pixel XL emulator (API 33 / Android 13), Node 22. Last full run: November 8, 2026.
 
 | Suite | Tests | How to run | Report |
 | --- | --- | --- | --- |
 | Android unit tests (JVM) | 66 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
-| Android instrumented + Compose UI (emulator) | 6 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
+| Android instrumented + Compose UI (emulator) | 7 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
 | Backend API | 13 | `cd backend` → `npm test` | Terminal output (`# pass 13`) |
-| **Total** | **85** | | |
+| **Total** | **86** | | |
 
 CI (`.github/workflows/ci.yml`) runs the backend tests and the Android build + unit tests on every push to `main`.
 
@@ -146,15 +146,16 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
 ---
 
-## 2. Android instrumented tests — 6 (on the emulator)
+## 2. Android instrumented tests — 7 (on the emulator)
 
-### ReadingsPipelineTest — 3 · the end-to-end data path on a real Room database
+### ReadingsPipelineTest — 4 · the end-to-end data path on a real Room database
 
 | # | Test | What it proves |
 | --- | --- | --- |
 | I1 | replayColdNight → stores readings, opens one issue, with timeline | **The vertical slice:** 97 readings saved → violations detected → exactly one heat issue opened automatically → timeline written → both violation runs linked to that issue |
 | I2 | ingest flags fridge jump and gap | Flags are computed and stored in Room, and the quality summary counts them |
 | I3 | escalate moves through the legal order | OPEN → NOTICE_SENT → INSPECTION_REQUESTED → CERTIFIED → reminder → RESOLVED, each step writing a timeline event |
+| I3b | editing the apartment keeps readings and issues | More → Edit → Continue updates the apartment in place; before the fix, Room's REPLACE deleted the row and the cascade wiped every reading and issue |
 
 ### HomeScreenTest — 3 · Compose UI test of the key screen
 
@@ -213,7 +214,7 @@ Fill in the Result column yourselves after running each one, and change any "Pas
 ## Evidence for the update
 
 - Screenshot of the unit-test report (66 passed)
-- Screenshot of the instrumented-test report (6 passed)
+- Screenshot of the instrumented-test report (7 passed)
 - Screenshot of the backend `npm test` output (13 passed)
 - Screenshot of the Android Studio Run window with the green test tree
 - Screenshots of M7, M8 and M10 on the emulator

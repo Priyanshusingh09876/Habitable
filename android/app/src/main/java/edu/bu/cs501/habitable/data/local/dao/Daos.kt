@@ -19,6 +19,14 @@ interface ApartmentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(apartment: ApartmentEntity): Long
 
+    /**
+     * Edit in place. Never use [upsert] on an existing apartment: SQLite's REPLACE
+     * deletes the old row first, and the CASCADE foreign keys then delete every
+     * sensor, reading, violation, issue and timeline event under it.
+     */
+    @Update
+    suspend fun update(apartment: ApartmentEntity)
+
     @Query("SELECT * FROM apartments ORDER BY id LIMIT 1")
     fun observeFirst(): Flow<ApartmentEntity?>
 
