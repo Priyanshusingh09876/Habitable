@@ -86,6 +86,7 @@ import edu.bu.cs501.habitable.ui.components.SectionHeader
 import edu.bu.cs501.habitable.ui.components.StatTile
 import edu.bu.cs501.habitable.ui.components.StatusChip
 import edu.bu.cs501.habitable.ui.components.SurfaceCard
+import edu.bu.cs501.habitable.ui.components.palette
 import edu.bu.cs501.habitable.ui.components.stepsDone
 import edu.bu.cs501.habitable.ui.components.tone
 import edu.bu.cs501.habitable.ui.theme.EvidenceFont
@@ -141,7 +142,7 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // Header
-                SurfaceCard {
+                SurfaceCard(accent = s.issue.status.tone().palette().accent) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CategoryBadge(s.issue.category, size = 52.dp)
                         Spacer(Modifier.width(14.dp))

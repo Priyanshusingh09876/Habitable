@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,7 +70,8 @@ import edu.bu.cs501.habitable.R
 import edu.bu.cs501.habitable.service.SensorForegroundService
 import edu.bu.cs501.habitable.ui.components.ChipTone
 import edu.bu.cs501.habitable.ui.components.IconTile
-import edu.bu.cs501.habitable.ui.components.ScreenHeader
+import edu.bu.cs501.habitable.ui.components.HeroHeader
+import edu.bu.cs501.habitable.ui.components.HeroPill
 import edu.bu.cs501.habitable.ui.components.SectionHeader
 import edu.bu.cs501.habitable.ui.components.StatusChip
 import edu.bu.cs501.habitable.ui.components.SurfaceCard
@@ -101,7 +103,16 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ScreenHeader(title = stringResource(R.string.more_title), eyebrow = "Settings")
+            HeroHeader(
+                title = stringResource(R.string.more_title),
+                eyebrow = "Settings",
+                subtitle = "Apartment, sensor, sync and privacy",
+                icon = Icons.Filled.Settings,
+                footer = {
+                    HeroPill(if (state.settings?.simulatedSensor != false) "Simulated" else "Bluetooth", "sensor")
+                    HeroPill(if (state.settings?.authToken != null) "On" else "Off", "sync")
+                },
+            )
 
             // Apartment
             SectionHeader(stringResource(R.string.more_apartment))
