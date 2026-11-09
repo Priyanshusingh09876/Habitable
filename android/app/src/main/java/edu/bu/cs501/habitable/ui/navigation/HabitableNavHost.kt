@@ -1,6 +1,10 @@
 package edu.bu.cs501.habitable.ui.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ListAlt
@@ -36,7 +40,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -88,6 +91,27 @@ private val tabs = listOf(
     Tab(Route.More, R.string.nav_more, Icons.Filled.MoreHoriz, Icons.Outlined.MoreHoriz) { it.hasRoute<Route.More>() },
 )
 
+/**
+ * Switches to a bottom-bar tab. Home is always the bottom of the stack once setup is done
+ * (the graph's start destination may be Setup, which is gone by then), so:
+ *  - Home: pop straight back to it. Navigating to Home with restoreState could bring back
+ *    whatever screen was saved on top of it, which is how "Open full chart" got stuck.
+ *  - Other tabs: pop to Home, keep each tab's state, and restore it next time.
+ */
+private fun NavHostController.openTab(route: Route) {
+    if (route == Route.Home) {
+        if (!popBackStack<Route.Home>(inclusive = false)) {
+            navigate(Route.Home) { launchSingleTop = true }
+        }
+        return
+    }
+    navigate(route) {
+        popUpTo<Route.Home> { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 @Composable
 fun HabitableNavHost(
     container: AppContainer,
@@ -114,13 +138,7 @@ fun HabitableNavHost(
                         val label = stringResource(tab.labelRes)
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                navController.navigate(tab.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { navController.openTab(tab.route) },
                             icon = { Icon(if (selected) tab.selected else tab.unselected, contentDescription = null) },
                             label = { Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) },
                             colors = NavigationBarItemDefaults.colors(
@@ -140,7 +158,13 @@ fun HabitableNavHost(
         NavHost(
             navController = navController,
             startDestination = if (startAtSetup) Route.Setup else Route.Home,
-            modifier = Modifier.padding(padding),
+            // Phones: full width. Tablets, foldables and landscape: content stays a readable
+            // column (at most 720 dp) centred on the screen instead of stretching edge to edge.
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 720.dp),
             // Short fade + slide between screens.
             enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 12 } },
             exitTransition = { fadeOut(tween(160)) },
@@ -151,8 +175,10 @@ fun HabitableNavHost(
                 SetupScreen(
                     viewModel = viewModel(factory = factory),
                     onDone = {
+                        // Clear everything (first setup, or editing from More) so Home is the only screen left.
                         navController.navigate(Route.Home) {
-                            popUpTo<Route.Setup> { inclusive = true }
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
                         }
                     },
                 )
@@ -162,7 +188,8 @@ fun HabitableNavHost(
                     viewModel = viewModel(factory = factory),
                     onOpenIssue = { id -> navController.navigate(Route.IssueDetail(id)) },
                     onReportIssue = { navController.navigate(Route.NewIssue) },
-                    onOpenSensors = { navController.navigate(Route.Sensors) { launchSingleTop = true } },
+                    // "Open full chart" is a tab switch, exactly like tapping Sensors in the bottom bar.
+                    onOpenSensors = { navController.openTab(Route.Sensors) },
                 )
             }
             composable<Route.Issues> {
