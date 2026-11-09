@@ -18,7 +18,10 @@ import edu.bu.cs501.habitable.data.sensor.BleSensorSource
 import edu.bu.cs501.habitable.data.sensor.SensorSource
 import edu.bu.cs501.habitable.data.sensor.SimulatedSensorSource
 import edu.bu.cs501.habitable.domain.rules.HeatRules
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -141,7 +144,10 @@ class SensorForegroundService : LifecycleService() {
     override fun onDestroy() {
         job?.cancel()
         job = null
-        lifecycleScope.launch { HabitableApp.container(this@SensorForegroundService).settings.setMonitoring(false) }
+        // Not lifecycleScope: super.onDestroy() cancels it before the DataStore write
+        // finishes, which left "monitoring" stuck on and the Stop button never went away.
+        val settings = HabitableApp.container(this).settings
+        cleanupScope.launch { settings.setMonitoring(false) }
         super.onDestroy()
     }
 
@@ -150,6 +156,9 @@ class SensorForegroundService : LifecycleService() {
         const val ACTION_STOP = "edu.bu.cs501.habitable.STOP_MONITORING"
         const val NOTIF_ID = 1001
         const val NOTIF_VIOLATION_ID = 1002
+
+        /** Outlives the service, so the "monitoring off" write in onDestroy always completes. */
+        private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         /** Faster than the 10-minute production cadence so a live demo shows motion. */
         const val LIVE_INTERVAL_MILLIS = 30_000L
