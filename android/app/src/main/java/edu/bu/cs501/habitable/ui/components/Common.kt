@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,7 +48,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -60,6 +64,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import edu.bu.cs501.habitable.domain.model.IssueCategory
 import edu.bu.cs501.habitable.domain.model.IssueStatus
+import edu.bu.cs501.habitable.ui.theme.HabitableBrushes
 import edu.bu.cs501.habitable.ui.theme.HabitableColors
 
 /** Reusable Material 3 pieces shared by the screens. All touch targets ≥ 48 dp. */
@@ -117,6 +122,82 @@ fun ScreenHeader(
 }
 
 /**
+ * Navy gradient header band used at the top of Sensors, Issues and More, so every
+ * tab opens with the same branded look as Home's hero card.
+ */
+@Composable
+fun HeroHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    eyebrow: String? = null,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    footer: (@Composable RowScope.() -> Unit)? = null,
+) {
+    val shape = MaterialTheme.shapes.large
+    Box(
+        modifier
+            .fillMaxWidth()
+            .shadow(10.dp, shape, ambientColor = HabitableColors.Navy.copy(alpha = 0.25f), spotColor = HabitableColors.Navy.copy(alpha = 0.35f))
+            .clip(shape)
+            .background(HabitableBrushes.Night)
+    ) {
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 60.dp, y = (-70).dp)
+                .size(200.dp)
+                .background(Brush.radialGradient(listOf(HabitableColors.HeatBright.copy(alpha = 0.32f), Color.Transparent)), CircleShape)
+        )
+        Column(Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    Box(
+                        Modifier.size(46.dp).background(Color(0x1FFFFFFF), RoundedCornerShape(15.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp)) }
+                    Spacer(Modifier.width(14.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    if (eyebrow != null) {
+                        Text(eyebrow.uppercase(), style = MaterialTheme.typography.labelMedium, color = HabitableColors.HeatBright)
+                        Spacer(Modifier.height(2.dp))
+                    }
+                    Text(title, style = MaterialTheme.typography.headlineMedium, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (subtitle != null) {
+                        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = HabitableColors.MistLight)
+                    }
+                }
+                if (trailing != null) {
+                    Spacer(Modifier.width(12.dp))
+                    trailing()
+                }
+            }
+            if (footer != null) {
+                Spacer(Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, content = footer)
+            }
+        }
+    }
+}
+
+/** Small translucent pill for numbers inside a [HeroHeader] footer. */
+@Composable
+fun HeroPill(value: String, label: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .background(Color(0x1FFFFFFF), RoundedCornerShape(999.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(value, style = MaterialTheme.typography.titleSmall, color = Color.White)
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = HabitableColors.MistLight)
+    }
+}
+
+/**
  * White card with a hairline border and a soft navy shadow. Pass [onClick] to
  * make the whole card one touch target (its children merge for TalkBack).
  */
@@ -126,6 +207,7 @@ fun SurfaceCard(
     onClick: (() -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(16.dp),
     containerColor: Color = MaterialTheme.colorScheme.surface,
+    accent: Color? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = MaterialTheme.shapes.medium
@@ -134,6 +216,13 @@ fun SurfaceCard(
             .fillMaxWidth()
             .shadow(elevation = 3.dp, shape = shape, ambientColor = HabitableColors.Navy.copy(alpha = 0.08f), spotColor = HabitableColors.Navy.copy(alpha = 0.12f))
             .clip(shape)
+            .then(
+                // A status-coloured stripe down the left edge, drawn over the card.
+                if (accent != null) Modifier.drawWithContent {
+                    drawContent()
+                    drawRect(accent, size = Size(5.dp.toPx(), size.height))
+                } else Modifier
+            )
             .background(containerColor)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), shape)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
