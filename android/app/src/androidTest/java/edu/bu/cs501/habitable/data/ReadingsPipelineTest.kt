@@ -117,4 +117,21 @@ class ReadingsPipelineTest {
         val timeline = issues.observeTimeline(id).first()
         assertThat(timeline.map { it.type.name }).containsAtLeast("NOTE", "NOTICE_SENT", "INSPECTION_REQUESTED", "VIOLATION_CERTIFIED", "REMINDER_SENT", "RESOLVED")
     }
+
+    @Test
+    fun editingTheApartment_keepsReadingsAndIssues() = runTest {
+        readings.replayColdNight(sensorId, tenAm)
+        assertThat(issues.open.first()).hasSize(1)
+
+        // Same as More > Edit > Continue: save the apartment again with new details.
+        val sameId = apartments.save(
+            Apartment(address = "14 Pratt St", unit = "4", city = "Boston", latitude = 42.36, longitude = -71.06, landlordName = "Mark Rivera", landlordEmail = "landlord@example.com")
+        )
+
+        assertThat(apartments.getApartment()!!.address).isEqualTo("14 Pratt St")
+        assertThat(apartments.primarySensorId()).isEqualTo(sensorId)
+        assertThat(issues.open.first()).hasSize(1)
+        assertThat(readings.observeReadings(sensorId, tenAm - 16 * 3_600_000L, tenAm).first()).hasSize(97)
+        assertThat(sameId).isGreaterThan(0L)
+    }
 }

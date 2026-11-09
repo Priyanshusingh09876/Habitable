@@ -24,10 +24,18 @@ class ApartmentRepository(
 
     suspend fun getApartment(): Apartment? = apartments.getFirst()?.toDomain()
 
-    /** Save (or replace) the apartment and make sure it has a simulated sensor row. */
+    /**
+     * Save the apartment and make sure it has a simulated sensor row. Editing an
+     * existing apartment updates it in place, so its readings and issues are kept.
+     */
     suspend fun save(apartment: Apartment): Long {
         val existing = apartments.getFirst()
-        val id = apartments.upsert(apartment.copy(id = existing?.id ?: 0).toEntity(createdAt = existing?.createdAt ?: clock()))
+        val id = if (existing == null) {
+            apartments.upsert(apartment.copy(id = 0).toEntity(createdAt = clock()))
+        } else {
+            apartments.update(apartment.copy(id = existing.id).toEntity(createdAt = existing.createdAt))
+            existing.id
+        }
         ensureSensor(id, SimulatedSensorSource.ADDRESS, "Simulated thermometer")
         return id
     }
