@@ -20,6 +20,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -99,7 +105,9 @@ fun HabitableNavHost(
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 0.dp,
-                    modifier = Modifier.shadow(12.dp, spotColor = HabitableColors.Navy.copy(alpha = 0.18f)),
+                    modifier = Modifier
+                        .shadow(18.dp, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp), spotColor = HabitableColors.Navy.copy(alpha = 0.25f))
+                        .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)),
                 ) {
                     tabs.forEach { tab ->
                         val selected = destination?.hierarchy?.any(tab.matches) == true
@@ -133,6 +141,11 @@ fun HabitableNavHost(
             navController = navController,
             startDestination = if (startAtSetup) Route.Setup else Route.Home,
             modifier = Modifier.padding(padding),
+            // Short fade + slide between screens.
+            enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 12 } },
+            exitTransition = { fadeOut(tween(160)) },
+            popEnterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { -it / 12 } },
+            popExitTransition = { fadeOut(tween(160)) },
         ) {
             composable<Route.Setup> {
                 SetupScreen(

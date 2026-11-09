@@ -364,7 +364,7 @@ private fun WeatherBanner(status: WeatherStatus, onRetry: () -> Unit) {
 
 @Composable
 private fun IssueRow(issue: Issue, onClick: () -> Unit) {
-    SurfaceCard(Modifier.testTag("issue_row"), onClick = onClick, contentPadding = PaddingValues(14.dp)) {
+    SurfaceCard(Modifier.testTag("issue_row"), onClick = onClick, contentPadding = PaddingValues(14.dp), accent = issue.status.tone().palette().accent) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             CategoryBadge(issue.category)
             Spacer(Modifier.width(12.dp))

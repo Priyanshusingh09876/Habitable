@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Description
@@ -50,9 +51,11 @@ import edu.bu.cs501.habitable.ui.components.CategoryBadge
 import edu.bu.cs501.habitable.ui.components.EmptyState
 import edu.bu.cs501.habitable.ui.components.EscalationProgress
 import edu.bu.cs501.habitable.ui.components.EscalationSteps
-import edu.bu.cs501.habitable.ui.components.ScreenHeader
+import edu.bu.cs501.habitable.ui.components.HeroHeader
+import edu.bu.cs501.habitable.ui.components.HeroPill
 import edu.bu.cs501.habitable.ui.components.StatusChip
 import edu.bu.cs501.habitable.ui.components.SurfaceCard
+import edu.bu.cs501.habitable.ui.components.palette
 import edu.bu.cs501.habitable.ui.components.stepsDone
 import edu.bu.cs501.habitable.ui.components.tone
 import edu.bu.cs501.habitable.ui.theme.HabitableColors
@@ -93,10 +96,16 @@ fun IssuesScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                ScreenHeader(
+                HeroHeader(
                     title = stringResource(R.string.issues_title),
                     eyebrow = "Your record",
-                    subtitle = "$active active · ${issues.size - active} resolved",
+                    subtitle = "Every problem, with its dated timeline",
+                    icon = Icons.Filled.Flag,
+                    footer = {
+                        HeroPill("$active", "active")
+                        HeroPill("${issues.size - active}", "resolved")
+                        HeroPill("${issues.size}", "total")
+                    },
                 )
             }
             item {
@@ -146,7 +155,7 @@ fun IssuesScreen(
 
 @Composable
 fun IssueCard(issue: Issue, onClick: () -> Unit) {
-    SurfaceCard(Modifier.testTag("issue_card_${issue.id}"), onClick = onClick) {
+    SurfaceCard(Modifier.testTag("issue_card_${issue.id}"), onClick = onClick, accent = issue.status.tone().palette().accent) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             CategoryBadge(issue.category)
             Spacer(Modifier.width(12.dp))

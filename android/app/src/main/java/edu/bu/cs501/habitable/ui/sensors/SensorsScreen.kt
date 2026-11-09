@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Verified
@@ -67,9 +68,10 @@ import edu.bu.cs501.habitable.data.repository.WeatherStatus
 import edu.bu.cs501.habitable.service.SensorForegroundService
 import edu.bu.cs501.habitable.ui.components.ChipTone
 import edu.bu.cs501.habitable.ui.components.EmptyState
+import edu.bu.cs501.habitable.ui.components.HeroHeader
+import edu.bu.cs501.habitable.ui.components.HeroPill
 import edu.bu.cs501.habitable.ui.components.IconTile
 import edu.bu.cs501.habitable.ui.components.InlineBanner
-import edu.bu.cs501.habitable.ui.components.ScreenHeader
 import edu.bu.cs501.habitable.ui.components.SectionHeader
 import edu.bu.cs501.habitable.ui.components.StatTile
 import edu.bu.cs501.habitable.ui.components.StatusChip
@@ -115,9 +117,10 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ScreenHeader(
+            HeroHeader(
                 title = stringResource(R.string.sensors_title),
                 eyebrow = "Living room",
+                icon = Icons.Filled.Sensors,
                 subtitle = if (state.simulated) stringResource(R.string.sensors_subtitle_sim) else stringResource(R.string.sensors_subtitle_ble),
                 trailing = {
                     StatusChip(
@@ -125,6 +128,10 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
                         if (state.monitoring) ChipTone.Good else ChipTone.Neutral,
                         dot = true, pulse = state.monitoring,
                     )
+                },
+                footer = {
+                    HeroPill(if (state.simulated) "30 s" else "10 min", "interval")
+                    HeroPill("68 / 64°F", "legal limit")
                 },
             )
 
