@@ -44,7 +44,7 @@ class IssueDetailViewModel(
     }
 
     /** The Escalate / Send notice button: moves the issue one step and logs it. */
-    fun advance() = viewModelScope.launch { issues.advance(issueId) }
+    fun advance(detail: String? = null) = viewModelScope.launch { issues.advance(issueId, detail) }
     fun resolve() = viewModelScope.launch { issues.resolve(issueId) }
     fun addNote(note: String) = viewModelScope.launch { issues.addNote(issueId, note) }
 }

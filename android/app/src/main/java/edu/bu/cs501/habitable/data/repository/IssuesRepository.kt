@@ -60,7 +60,11 @@ class IssuesRepository(
      * Perform the issue's current next action. Returns the new status, or null
      * if there was nothing to do.
      */
-    suspend fun advance(issueId: Long): IssueStatus? = db.withTransaction {
+    /**
+     * Moves the issue one legal step and logs it. [detail] is added to the timeline note,
+     * e.g. how the inspection was requested or the inspector's case number.
+     */
+    suspend fun advance(issueId: Long, detail: String? = null): IssueStatus? = db.withTransaction {
         val issue = issues.getById(issueId)?.toDomain() ?: return@withTransaction null
         val now = clock()
         val (next, event, note) = when (issue.status.nextAction) {
@@ -83,7 +87,8 @@ class IssuesRepository(
             NextAction.NONE -> return@withTransaction null
         }
         issues.update(issue.copy(status = next).toEntity())
-        timeline.insert(TimelineEvent(issueId = issueId, type = event, occurredAtMillis = now, note = note).toEntity())
+        val fullNote = detail?.trim()?.takeIf { it.isNotEmpty() }?.let { "$note · $it" } ?: note
+        timeline.insert(TimelineEvent(issueId = issueId, type = event, occurredAtMillis = now, note = fullNote).toEntity())
         next
     }
 

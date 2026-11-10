@@ -106,8 +106,8 @@ class ReadingsPipelineTest {
         assertThat(issues.observe(id).first()!!.status).isEqualTo(IssueStatus.OPEN)
 
         assertThat(issues.advance(id)).isEqualTo(IssueStatus.NOTICE_SENT)
-        assertThat(issues.advance(id)).isEqualTo(IssueStatus.INSPECTION_REQUESTED)
-        assertThat(issues.advance(id)).isEqualTo(IssueStatus.CERTIFIED)
+        assertThat(issues.advance(id, "Called Boston 311 (617-635-4500)")).isEqualTo(IssueStatus.INSPECTION_REQUESTED)
+        assertThat(issues.advance(id, "Case #ISD-2026-123")).isEqualTo(IssueStatus.CERTIFIED)
         assertThat(issues.advance(id)).isEqualTo(IssueStatus.CERTIFIED) // reminder keeps the state
 
         issues.resolve(id)
@@ -116,6 +116,9 @@ class ReadingsPipelineTest {
 
         val timeline = issues.observeTimeline(id).first()
         assertThat(timeline.map { it.type.name }).containsAtLeast("NOTE", "NOTICE_SENT", "INSPECTION_REQUESTED", "VIOLATION_CERTIFIED", "REMINDER_SENT", "RESOLVED")
+        // How the inspection was requested and the inspector's case number end up on the record.
+        assertThat(timeline.first { it.type.name == "INSPECTION_REQUESTED" }.note).contains("Called Boston 311")
+        assertThat(timeline.first { it.type.name == "VIOLATION_CERTIFIED" }.note).contains("Case #ISD-2026-123")
     }
 
     @Test

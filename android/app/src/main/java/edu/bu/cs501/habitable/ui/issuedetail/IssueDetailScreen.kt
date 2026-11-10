@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Gavel
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
@@ -41,6 +43,8 @@ import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -103,6 +107,41 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     // rememberSaveable so a half-typed note survives rotation.
     var note by rememberSaveable { mutableStateOf("") }
+    var showInspection by rememberSaveable { mutableStateOf(false) }
+    var showCertified by rememberSaveable { mutableStateOf(false) }
+    var caseNumber by rememberSaveable { mutableStateOf("") }
+
+    if (showInspection) {
+        InspectionDialog(
+            onCall = {
+                dialCity(context)
+                viewModel.advance("Called Boston 311 (617-635-4500)")
+                showInspection = false
+            },
+            onOnline = {
+                openWeb(context, BOSTON_311_URL)
+                viewModel.advance("Requested online at 311.boston.gov")
+                showInspection = false
+            },
+            onAlreadyDone = {
+                viewModel.advance()
+                showInspection = false
+            },
+            onDismiss = { showInspection = false },
+        )
+    }
+    if (showCertified) {
+        CertifiedDialog(
+            caseNumber = caseNumber,
+            onCaseNumberChange = { caseNumber = it.take(40) },
+            onSave = {
+                viewModel.advance(caseNumber.trim().takeIf { it.isNotEmpty() }?.let { "Case #$it" })
+                caseNumber = ""
+                showCertified = false
+            },
+            onDismiss = { showCertified = false },
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -211,10 +250,18 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                         Spacer(Modifier.height(14.dp))
                         Button(
                             onClick = {
-                                // Notice and reminder steps open the tenant's email app with the letter filled in.
-                                // The tenant reviews it and presses Send; the app only logs the step.
-                                viewModel.letterFor(s)?.let { openEmail(context, it) }
-                                viewModel.advance()
+                                when (s.nextAction) {
+                                    // Ask how the inspection was requested: call or Boston 311 online.
+                                    NextAction.REQUEST_INSPECTION -> showInspection = true
+                                    // Ask for the inspector's case number before logging it.
+                                    NextAction.MARK_CERTIFIED -> showCertified = true
+                                    else -> {
+                                        // Notice and reminder steps open the tenant's email app with the letter filled in.
+                                        // The tenant reviews it and presses Send; the app only logs the step.
+                                        viewModel.letterFor(s)?.let { openEmail(context, it) }
+                                        viewModel.advance()
+                                    }
+                                }
                             },
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Heat, contentColor = Color.White),
@@ -289,6 +336,94 @@ private fun shareTimeline(context: Context, s: IssueDetailUiState.Loaded) {
         putExtra(Intent.EXTRA_TEXT, text)
     }
     context.startActivity(Intent.createChooser(send, "Share timeline"))
+}
+
+private const val BOSTON_311_URL = "https://311.boston.gov"
+/** Boston 311 from a mobile phone (dialling 3-1-1 also works inside Boston). */
+private const val BOSTON_311_PHONE = "6176354500"
+
+/** Opens the dialer with the number filled in. ACTION_DIAL needs no permission; the tenant presses Call. */
+private fun dialCity(context: Context) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$BOSTON_311_PHONE")))
+    } catch (_: ActivityNotFoundException) {
+        openWeb(context, BOSTON_311_URL)
+    }
+}
+
+private fun openWeb(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (_: ActivityNotFoundException) {
+        // No browser: nothing to open. The step is still logged.
+    }
+}
+
+@Composable
+private fun InspectionDialog(
+    onCall: () -> Unit,
+    onOnline: () -> Unit,
+    onAlreadyDone: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        title = { Text("Request a city inspection") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("In Boston, Inspectional Services handles no-heat complaints through 311. Choose how you want to ask; we log it on your timeline.")
+                Button(
+                    onClick = onCall,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("btn_call_311"),
+                ) {
+                    Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Call 311")
+                }
+                OutlinedButton(
+                    onClick = onOnline,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("btn_online_311"),
+                ) {
+                    Icon(Icons.Filled.Language, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Report online (311.boston.gov)")
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onAlreadyDone) { Text("I already asked") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun CertifiedDialog(
+    caseNumber: String,
+    onCaseNumberChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Filled.Gavel, contentDescription = null) },
+        title = { Text("Inspector certified the violation") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Add the case or violation number from the inspection report, so your timeline points to the official record.")
+                OutlinedTextField(
+                    value = caseNumber,
+                    onValueChange = onCaseNumberChange,
+                    label = { Text("Case number (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("field_case_number"),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onSave, modifier = Modifier.testTag("btn_save_certified")) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** Opens an email app with the letter pre-filled; falls back to the share sheet if none is installed. */
