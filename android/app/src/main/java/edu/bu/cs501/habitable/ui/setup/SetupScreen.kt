@@ -84,13 +84,14 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = form.unit, onValueChange = viewModel::setUnit,
-                    label = { Text(stringResource(R.string.setup_unit)) },
+                    label = { Text(stringResource(R.string.setup_unit), maxLines = 1) },
+                    placeholder = { Text("Apt 3", maxLines = 1) },
                     leadingIcon = { Icon(Icons.Filled.Apartment, contentDescription = null) },
                     singleLine = true, shape = fieldShape, modifier = Modifier.weight(1f).testTag("field_unit"),
                 )
                 OutlinedTextField(
                     value = form.city, onValueChange = viewModel::setCity,
-                    label = { Text(stringResource(R.string.setup_city)) },
+                    label = { Text(stringResource(R.string.setup_city), maxLines = 1) },
                     leadingIcon = { Icon(Icons.Filled.LocationCity, contentDescription = null) },
                     singleLine = true, shape = fieldShape, modifier = Modifier.weight(1f),
                 )

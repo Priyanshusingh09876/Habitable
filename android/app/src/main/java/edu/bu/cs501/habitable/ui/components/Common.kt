@@ -391,7 +391,12 @@ fun StatTile(icon: ImageVector, value: String, label: String, accent: Color, mod
         IconTile(icon, accent, accent.copy(alpha = 0.12f), size = 36.dp)
         Spacer(Modifier.height(10.dp))
         Text(value, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+        // minLines = 2: a one-line label ("cold period") takes the same height as a two-line one
+        // ("below the legal limit"), so tiles side by side always line up.
+        Text(
+            label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

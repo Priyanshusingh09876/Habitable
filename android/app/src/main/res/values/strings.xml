@@ -75,7 +75,7 @@
     <string name="setup_title">Set up your apartment</string>
     <string name="setup_intro">Habitable keeps your records on this phone. Your address is only used to fetch outdoor weather and to label your PDF.</string>
     <string name="setup_address">Street address</string>
-    <string name="setup_unit">Unit / apartment</string>
+    <string name="setup_unit">Unit</string>
     <string name="setup_city">City</string>
     <string name="setup_landlord_name">Landlord name</string>
     <string name="setup_landlord_email">Landlord email</string>
