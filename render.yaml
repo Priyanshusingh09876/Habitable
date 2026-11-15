@@ -1,0 +1,22 @@
+# Render blueprint for the Habitable API (backlog US-9).
+# New > Blueprint in the Render dashboard, pick this repo, then paste the Neon
+# connection string when it asks for DATABASE_URL. Steps: docs/REAL_DEVICE.md
+services:
+  - type: web
+    name: habitable-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    # schema.sql is idempotent (CREATE ... IF NOT EXISTS), so it is safe on every deploy.
+    startCommand: npm run migrate && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: JWT_SECRET
+        generateValue: true   # Render creates a random secret; it never lives in the repo
+      - key: JWT_EXPIRES_IN
+        value: 30d
+      - key: DATABASE_URL
+        sync: false           # asked for at deploy time: the Neon string ending in ?sslmode=require

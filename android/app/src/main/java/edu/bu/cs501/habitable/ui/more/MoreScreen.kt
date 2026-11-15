@@ -1,5 +1,7 @@
 package edu.bu.cs501.habitable.ui.more
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +34,9 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -67,6 +72,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.bu.cs501.habitable.R
+import edu.bu.cs501.habitable.data.sensor.BleSupport
+import edu.bu.cs501.habitable.data.sensor.FoundSensor
 import edu.bu.cs501.habitable.service.SensorForegroundService
 import edu.bu.cs501.habitable.ui.components.ChipTone
 import edu.bu.cs501.habitable.ui.components.IconTile
@@ -80,6 +87,7 @@ import edu.bu.cs501.habitable.ui.theme.HabitableColors
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
@@ -90,6 +98,38 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
     var password by rememberSaveable { mutableStateOf("") }
     var bleAddress by rememberSaveable { mutableStateOf("") }
     val fieldShape = RoundedCornerShape(14.dp)
+
+    // Thermometer picker: ask for the Bluetooth permissions, then scan and show what is nearby.
+    var showPicker by rememberSaveable { mutableStateOf(false) }
+    val openPicker = {
+        val problem = BleSupport.problem(context)
+        if (problem != null) viewModel.showMessage(problem)
+        else {
+            showPicker = true
+            viewModel.startScan()
+        }
+    }
+    val blePermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
+        if (BleSupport.hasPermissions(context)) openPicker()
+        else viewModel.showMessage("Habitable needs Nearby devices and precise Location to find the thermometer. Allow them in Settings > Apps > Habitable > Permissions.")
+    }
+    val findSensor = {
+        if (BleSupport.hasPermissions(context)) openPicker() else blePermissions.launch(BleSupport.requiredPermissions())
+    }
+
+    if (showPicker) {
+        SensorPickerDialog(
+            scanning = state.scanning,
+            found = state.found,
+            onPick = {
+                viewModel.chooseSensor(it)
+                showPicker = false
+                SensorForegroundService.stop(context) // a running service keeps its old sensor; restart it from Sensors
+            },
+            onRescan = { viewModel.startScan() },
+            onDismiss = { viewModel.stopScan(); showPicker = false },
+        )
+    }
 
     LaunchedEffect(state.message) { state.message?.let { snackbar.showSnackbar(it); viewModel.clearMessage() } }
 
@@ -152,16 +192,43 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
                     selected = !simulated,
                 ) { viewModel.setSimulated(false); SensorForegroundService.stop(context) }
                 if (!simulated) {
-                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val paired = state.settings?.bleAddress
+                        if (paired != null) {
+                            Text(
+                                "Paired: ${state.settings?.bleName ?: "Thermometer"} · $paired",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.testTag("paired_sensor"),
+                            )
+                        } else {
+                            Text(
+                                "No thermometer paired yet. Until you pair one, Habitable keeps using the simulated sensor.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Button(
+                            onClick = findSensor,
+                            shape = fieldShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Navy),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("btn_find_sensor"),
+                        ) {
+                            Icon(Icons.Filled.Bluetooth, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (paired == null) "Find my thermometer" else "Pair a different thermometer")
+                        }
                         OutlinedTextField(
-                            value = bleAddress.ifBlank { state.settings?.bleAddress ?: "" },
+                            value = bleAddress.ifBlank { paired ?: "" },
                             onValueChange = { bleAddress = it },
-                            label = { Text("Sensor MAC address (AA:BB:CC:DD:EE:FF)") },
+                            label = { Text("Or type its address (A4:C1:38:…)") },
                             singleLine = true,
                             shape = fieldShape,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        TextButton(onClick = { viewModel.setBleAddress(bleAddress) }) { Text("Save address", fontWeight = FontWeight.Bold) }
+                        TextButton(onClick = { viewModel.setBleAddress(bleAddress); SensorForegroundService.stop(context) }, enabled = bleAddress.isNotBlank()) {
+                            Text("Save address", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -239,6 +306,64 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
             Spacer(Modifier.height(8.dp))
         }
     }
+}
+
+/** Lists the thermometers heard nearby with their live reading, so the user can recognise theirs. */
+@Composable
+private fun SensorPickerDialog(
+    scanning: Boolean,
+    found: List<FoundSensor>,
+    onPick: (FoundSensor) -> Unit,
+    onRescan: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Filled.Bluetooth, contentDescription = null) },
+        title = { Text("Find my thermometer") },
+        text = {
+            Column(
+                Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Keep the thermometer within a few metres. Tap yours: the temperature should match its screen.")
+                if (scanning) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Looking for thermometers…", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                if (found.isEmpty() && !scanning) {
+                    Text(
+                        "No Govee H5075 found. Check that its screen is on (pull the battery tab), move closer, and scan again.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = HabitableColors.HeatInk,
+                    )
+                }
+                found.forEach { sensor ->
+                    SurfaceCard(onClick = { onPick(sensor) }, contentPadding = PaddingValues(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("found_sensor")) {
+                            Column(Modifier.weight(1f)) {
+                                Text(sensor.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    sensor.address + (sensor.batteryPct?.let { " · battery $it%" } ?: ""),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(String.format(Locale.US, "%.1f°F", sensor.tempF), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(String.format(Locale.US, "%.0f%% humidity", sensor.humidityPct), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onRescan, enabled = !scanning) { Text("Scan again") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
 }
 
 @Composable

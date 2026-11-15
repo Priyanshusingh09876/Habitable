@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
 import edu.bu.cs501.habitable.di.AppContainer
+import edu.bu.cs501.habitable.service.ViolationAlert
 import edu.bu.cs501.habitable.ui.home.HomeViewModel
 import edu.bu.cs501.habitable.ui.issuedetail.IssueDetailViewModel
 import edu.bu.cs501.habitable.ui.issues.IssuesViewModel
@@ -26,7 +27,12 @@ class HabitableViewModelFactory(
         modelClass.isAssignableFrom(HomeViewModel::class.java) ->
             HomeViewModel(container.apartments, container.readings, container.weather, container.issues, container.settings)
         modelClass.isAssignableFrom(SensorsViewModel::class.java) ->
-            SensorsViewModel(container.apartments, container.readings, container.weather, container.settings)
+            SensorsViewModel(
+                container.apartments, container.readings, container.weather, container.settings,
+                onIssueOpened = { tempF ->
+                    extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]?.let { ViolationAlert.post(it, tempF) }
+                },
+            )
         modelClass.isAssignableFrom(IssuesViewModel::class.java) ->
             IssuesViewModel(container.issues)
         modelClass.isAssignableFrom(NewIssueViewModel::class.java) ->
@@ -34,9 +40,9 @@ class HabitableViewModelFactory(
         modelClass.isAssignableFrom(IssueDetailViewModel::class.java) ->
             IssueDetailViewModel(issueId, container.issues, container.apartments)
         modelClass.isAssignableFrom(SetupViewModel::class.java) ->
-            SetupViewModel(container.apartments, container.settings)
+            SetupViewModel(container.apartments, container.settings, container.weather)
         modelClass.isAssignableFrom(MoreViewModel::class.java) ->
-            MoreViewModel(container.apartments, container.settings, container.sync, container.readings)
+            MoreViewModel(container.apartments, container.settings, container.sync, container.readings, container.bleScanner)
         else -> throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
     } as T
 }

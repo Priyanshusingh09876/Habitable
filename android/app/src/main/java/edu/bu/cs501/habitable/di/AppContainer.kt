@@ -10,6 +10,7 @@ import edu.bu.cs501.habitable.data.repository.IssuesRepository
 import edu.bu.cs501.habitable.data.repository.ReadingsRepository
 import edu.bu.cs501.habitable.data.repository.SyncRepository
 import edu.bu.cs501.habitable.data.repository.WeatherRepository
+import edu.bu.cs501.habitable.data.sensor.BleDeviceScanner
 import edu.bu.cs501.habitable.data.settings.SettingsRepository
 import edu.bu.cs501.habitable.domain.quality.DataQualityChecker
 import edu.bu.cs501.habitable.domain.rules.ViolationDetector
@@ -29,6 +30,7 @@ interface AppContainer {
     val weather: WeatherRepository
     val issues: IssuesRepository
     val sync: SyncRepository
+    val bleScanner: BleDeviceScanner
 }
 
 class DefaultAppContainer(context: Context) : AppContainer {
@@ -48,4 +50,5 @@ class DefaultAppContainer(context: Context) : AppContainer {
     override val weather: WeatherRepository by lazy { WeatherRepository(database, openMeteoApi) }
     override val issues: IssuesRepository by lazy { IssuesRepository(database) }
     override val sync: SyncRepository by lazy { SyncRepository(database, habitableApi, settings) }
+    override val bleScanner: BleDeviceScanner by lazy { BleDeviceScanner(appContext) }
 }

@@ -76,7 +76,13 @@ class ReadingsRepository(
         val readingId = readings.insert(flagged.toEntity())
         val stored = flagged.copy(id = readingId)
 
-        val open = violations.getOpen(sensorId)?.toDomain()
+        var open = violations.getOpen(sensorId)?.toDomain()
+        // Readings stopped for a long time (phone off, sensor out of range): end the open
+        // period at the last reading we really have, so unmeasured time is never counted.
+        detector.closeAtGap(open, previous?.recordedAtMillis, stored.recordedAtMillis)?.let { closed ->
+            closeViolation(closed, note = "Readings stopped; period ended at the last reading")
+            open = null
+        }
         var issueOpened: Issue? = null
         var violationNow: Violation? = open
 
@@ -109,7 +115,7 @@ class ReadingsRepository(
         IngestResult(reading = stored, openViolation = violationNow, issueOpened = issueOpened)
     }
 
-    private suspend fun closeViolation(v: Violation) {
+    private suspend fun closeViolation(v: Violation, note: String = "Temperature back above ${v.requiredTempF}°F") {
         violations.update(v.toEntity())
         val issueId = v.issueId ?: return
         timeline.insert(
@@ -117,7 +123,7 @@ class ReadingsRepository(
                 issueId = issueId,
                 type = TimelineEventType.SENSOR_VIOLATION_ENDED,
                 occurredAtMillis = v.endedAtMillis ?: clock(),
-                note = "Temperature back above ${v.requiredTempF}°F",
+                note = note,
             ).toEntity()
         )
     }
@@ -143,7 +149,7 @@ class ReadingsRepository(
     }
 
     private suspend fun openIssueFor(sensorId: Long, v: Violation, nowMillis: Long): Issue {
-        val sensor = sensors.getFirst()
+        val sensor = sensors.getById(sensorId) ?: sensors.getFirst()
         val apartmentId = sensor?.apartmentId ?: 0L
         val room = sensor?.room ?: "Living room"
         val issue = Issue(
@@ -179,13 +185,17 @@ class ReadingsRepository(
         val start = endMillis - SimulatedSensorSource.REPLAY_HOURS * 3_600_000L
         val samples = SimulatedSensorSource.coldNight(start)
         var opened = 0
+        var alertTempF: Double? = null
         var last: IngestResult? = null
         for (s in samples) {
             val r = ingest(sensorId, s)
-            if (r.issueOpened != null) opened++
+            if (r.issueOpened != null) {
+                opened++
+                alertTempF = r.reading.tempF
+            }
             last = r
         }
-        return ReplaySummary(samples = samples.size, issuesOpened = opened, lastReading = last?.reading)
+        return ReplaySummary(samples = samples.size, issuesOpened = opened, lastReading = last?.reading, alertTempF = alertTempF)
     }
 
     /** Demo-only reset so a presentation can start from a clean slate. */
@@ -217,4 +227,10 @@ data class IngestResult(
     val issueOpened: Issue?,
 )
 
-data class ReplaySummary(val samples: Int, val issuesOpened: Int, val lastReading: Reading?)
+data class ReplaySummary(
+    val samples: Int,
+    val issuesOpened: Int,
+    val lastReading: Reading?,
+    /** Temperature of the reading that opened a new issue, so the caller can alert. Null if none opened. */
+    val alertTempF: Double? = null,
+)

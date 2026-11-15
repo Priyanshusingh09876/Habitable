@@ -41,6 +41,30 @@ class ConvertersAndDecodersTest {
         assertThat(rh).isWithin(0.01).of(45.0)
     }
 
+    @Test fun `a real H5075 packet decodes to its temperature, humidity and battery`() {
+        // Manufacturer data as an H5075 broadcasts it: 00 03 2B 0F 64 00
+        // 0x032B0F = 207631 -> 20.7 °C = 69.3 °F, 63.1 % RH; 0x64 = battery 100 %.
+        val payload = byteArrayOf(0x00, 0x03, 0x2B, 0x0F, 0x64, 0x00)
+        val (tempF, rh) = BleSensorSource.decodeGovee(payload)!!
+        assertThat(tempF).isWithin(0.05).of(69.3)
+        assertThat(rh).isWithin(0.01).of(63.1)
+        assertThat(BleSensorSource.decodeBattery(payload)).isEqualTo(100)
+    }
+
+    @Test fun `a below-freezing packet sets the sign bit`() {
+        // -5.2 °C, 40.0 % RH -> raw = 52400 with the top bit set
+        val raw = 52_400 or 0x800000
+        val payload = byteArrayOf(0x00, (raw shr 16).toByte(), (raw shr 8).toByte(), raw.toByte(), 0x50)
+        val (tempF, rh) = BleSensorSource.decodeGovee(payload)!!
+        assertThat(tempF).isWithin(0.05).of(22.6)
+        assertThat(rh).isWithin(0.01).of(40.0)
+    }
+
+    @Test fun `battery is null when the packet is short or the byte is out of range`() {
+        assertThat(BleSensorSource.decodeBattery(byteArrayOf(0, 1, 2, 3))).isNull()
+        assertThat(BleSensorSource.decodeBattery(byteArrayOf(0, 1, 2, 3, 0xFF.toByte()))).isNull()
+    }
+
     @Test fun `govee decoder rejects short or absurd payloads`() {
         assertThat(BleSensorSource.decodeGovee(byteArrayOf(1, 2))).isNull()
         val absurd = byteArrayOf(0x00, 0x7F, 0xFF.toByte(), 0xFF.toByte())

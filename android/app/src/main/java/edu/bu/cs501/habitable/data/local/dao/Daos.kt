@@ -48,6 +48,16 @@ interface SensorDao {
     @Query("SELECT * FROM sensors WHERE ble_address = :address LIMIT 1")
     suspend fun findByAddress(address: String): SensorEntity?
 
+    /** Re-emits when the row for [address] is created, so screens can switch to a newly paired sensor. */
+    @Query("SELECT * FROM sensors WHERE ble_address = :address LIMIT 1")
+    fun observeByAddress(address: String): Flow<SensorEntity?>
+
+    @Query("SELECT * FROM sensors WHERE id = :id")
+    suspend fun getById(id: Long): SensorEntity?
+
+    @Query("SELECT * FROM sensors ORDER BY id")
+    suspend fun getAll(): List<SensorEntity>
+
     @Query("SELECT * FROM sensors ORDER BY id LIMIT 1")
     suspend fun getFirst(): SensorEntity?
 

@@ -1,20 +1,20 @@
 # Test plan and results — Project Update 1
 
-**86 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
+**97 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
 Run on: Windows 11, Android Studio, Pixel XL emulator (API 33 / Android 13), Node 22. Last full run: November 8, 2026.
 
 | Suite | Tests | How to run | Report |
 | --- | --- | --- | --- |
-| Android unit tests (JVM) | 66 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
-| Android instrumented + Compose UI (emulator) | 7 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
+| Android unit tests (JVM) | 75 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
+| Android instrumented + Compose UI (emulator) | 9 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
 | Backend API | 13 | `cd backend` → `npm test` | Terminal output (`# pass 13`) |
-| **Total** | **86** | | |
+| **Total** | **97** | | |
 
 CI (`.github/workflows/ci.yml`) runs the backend tests and the Android build + unit tests on every push to `main`.
 
 ---
 
-## 1. Android unit tests — 66
+## 1. Android unit tests — 75
 
 Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
@@ -36,7 +36,7 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U12 | evaluate flags above the 78 maximum | Overheating is a violation too |
 | U13 | out of season in July regardless of temperature | 40 °F in July is not a heat violation |
 
-### ViolationDetectorTest — 9 · turning readings into violation periods
+### ViolationDetectorTest — 12 · turning readings into violation periods
 
 | # | Test | What it proves |
 | --- | --- | --- |
@@ -49,6 +49,9 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U20 | an issue opens only after the minimum duration | No issue for under 2 hours of cold |
 | U21 | an issue never opens twice for the same violation | No duplicate issues |
 | U22 | totalBelowMillis sums closed and open violations | The "hours below limit" stat is correct |
+| U67 | a long gap ends the open violation at the last reading before it | Phone off for 12 days: the period counts one measured hour, not 12 days |
+| U68 | a normal interval or no open violation closes nothing | 30 minutes or less between readings is not a gap; 31 minutes is |
+| U69 | stepping reading by reading splits a cold period at a long gap | The same loop the app runs produces two periods around a two-day hole |
 
 ### DataQualityCheckerTest — 6 · tamper and gap flags
 
@@ -93,7 +96,7 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U44 | chart data finds violation spans and axis bounds | Shading covers only real violations |
 | U45 | chart data with no readings is empty but has a limit line | Empty state is handled |
 
-### ConvertersAndDecodersTest — 6 · storage, BLE and validation
+### ConvertersAndDecodersTest — 9 · storage, BLE and validation
 
 | # | Test | What it proves |
 | --- | --- | --- |
@@ -102,7 +105,18 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U48 | issue status next actions follow the legal order | Escalate = notice → inspection → certified → reminder |
 | U49 | govee payload decodes to Fahrenheit and humidity | BLE decoder math is correct |
 | U50 | govee decoder rejects short or absurd payloads | Bad Bluetooth data is ignored |
+| U70 | a real H5075 packet decodes to its temperature, humidity and battery | The bytes an H5075 broadcasts (`00 03 2B 0F 64 00`) give 69.3 °F, 63.1 %, battery 100 % |
+| U71 | a below-freezing packet sets the sign bit | Negative Celsius values decode correctly |
+| U72 | battery is null when the packet is short or the byte is out of range | A malformed battery byte is ignored |
 | U51 | setup email validation | Invalid landlord emails are rejected |
+
+### PickPlaceTest — 3 · which city the weather is for
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U73 | a Massachusetts match wins over an earlier result elsewhere | "Cambridge" means Cambridge, MA, not Maryland or Ohio |
+| U74 | without a Massachusetts match the first result is used | Other cities still get their own weather |
+| U75 | no results or impossible coordinates give null | A bad answer from the geocoder is ignored and the saved coordinates are kept |
 
 ### NoticeTemplateTest — 4 · the letter sent to the landlord
 
@@ -146,9 +160,9 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
 ---
 
-## 2. Android instrumented tests — 7 (on the emulator)
+## 2. Android instrumented tests — 9 (on the emulator)
 
-### ReadingsPipelineTest — 4 · the end-to-end data path on a real Room database
+### ReadingsPipelineTest — 6 · the end-to-end data path on a real Room database
 
 | # | Test | What it proves |
 | --- | --- | --- |
@@ -156,6 +170,8 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | I2 | ingest flags fridge jump and gap | Flags are computed and stored in Room, and the quality summary counts them |
 | I3 | escalate moves through the legal order | OPEN → NOTICE_SENT → INSPECTION_REQUESTED → CERTIFIED → reminder → RESOLVED, each step writing a timeline event |
 | I3b | editing the apartment keeps readings and issues | More → Edit → Continue updates the apartment in place; before the fix, Room's REPLACE deleted the row and the cascade wiped every reading and issue |
+| I3c | a long gap in readings ends the cold period | Phone off for two weeks in the middle of a cold spell: the period ends at the last real reading, the next reading is flagged GAP_BEFORE, and "hours below the limit" counts 20 measured minutes, not two weeks |
+| I3d | a second sensor keeps its own readings | Pairing the Bluetooth thermometer adds a sensor next to the simulated one; each keeps its own readings and the screens can follow either |
 
 ### HomeScreenTest — 3 · Compose UI test of the key screen
 
@@ -213,7 +229,7 @@ Fill in the Result column yourselves after running each one, and change any "Pas
 
 ## Evidence for the update
 
-- Screenshot of the unit-test report (66 passed)
+- Screenshot of the unit-test report (75 passed)
 - Screenshot of the instrumented-test report (7 passed)
 - Screenshot of the backend `npm test` output (13 passed)
 - Screenshot of the Android Studio Run window with the green test tree

@@ -8,6 +8,8 @@ import edu.bu.cs501.habitable.data.repository.WeatherRepository
 import edu.bu.cs501.habitable.data.repository.WeatherStatus
 import edu.bu.cs501.habitable.data.sensor.SimulatedSensorSource
 import edu.bu.cs501.habitable.data.settings.SettingsRepository
+import edu.bu.cs501.habitable.data.settings.activeSensorAddress
+import edu.bu.cs501.habitable.data.settings.usesBluetooth
 import edu.bu.cs501.habitable.domain.model.Reading
 import edu.bu.cs501.habitable.domain.quality.QualitySummary
 import edu.bu.cs501.habitable.domain.quality.WeatherCrossCheck
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -35,6 +38,8 @@ class SensorsViewModel(
     private val weather: WeatherRepository,
     private val settings: SettingsRepository,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** Posts the "no heat" notification; the factory wires it to ViolationAlert so the ViewModel holds no Context. */
+    private val onIssueOpened: (tempF: Double) -> Unit = {},
 ) : ViewModel() {
 
     private val crossCheck = WeatherCrossCheck()
@@ -45,7 +50,21 @@ class SensorsViewModel(
 
     private val window = combine(range, now) { r, n -> (n - r.hours * 3_600_000L) to n }
 
-    private val sensorId = apartments.apartment.map { it?.let { apartments.primarySensorId() } }
+    // Follow the sensor in use: the simulator, or the paired Bluetooth thermometer.
+    private val sensorId = settings.settings.map { it.activeSensorAddress }.distinctUntilChanged()
+        .flatMapLatest { address -> apartments.observeSensorId(address) }
+
+    init {
+        // If monitoring stopped by itself (Bluetooth off, permission removed…), say why once.
+        viewModelScope.launch {
+            settings.settings.map { it.sensorError }.distinctUntilChanged().collect { error ->
+                if (error != null) {
+                    message.value = error
+                    settings.setSensorError(null)
+                }
+            }
+        }
+    }
 
     private val readingsFlow = combine(sensorId, window) { id, w -> id to w }
         .flatMapLatest { (id, w) -> if (id == null) flowOf(emptyList()) else readings.observeReadings(id, w.first, w.second) }
@@ -69,7 +88,8 @@ class SensorsViewModel(
             weatherMismatchSpans = crossCheck.spans(list, outdoor).size,
         )
     }
-        .combine(settings.settings) { s, st -> s.copy(monitoring = st.monitoringEnabled, simulated = st.simulatedSensor) }
+        .combine(settings.settings) { s, st -> s.copy(monitoring = st.monitoringEnabled, simulated = !st.usesBluetooth, sensorName = st.bleName, sensorAddress = st.bleAddress)
+        }
         .combine(weather.status) { s, w -> s.copy(weather = w) }
         .combine(busy) { s, b -> s.copy(busy = b) }
         .combine(message) { s, m -> s.copy(message = m) }
@@ -81,6 +101,7 @@ class SensorsViewModel(
     fun setRange(r: ChartRange) { range.value = r; now.value = clock() }
     fun tick() { now.value = clock() }
     fun clearMessage() { message.value = null }
+    fun showMessage(text: String) { message.value = text }
 
     /** Demo path: ingest the proposal's cold night through the real pipeline. */
     fun replayColdNight() = viewModelScope.launch {
@@ -90,6 +111,7 @@ class SensorsViewModel(
             val apt = apartments.getApartment() ?: run { message.value = "Set up your apartment first"; return@launch }
             val id = apartments.ensureSensor(apt.id, SimulatedSensorSource.ADDRESS, "Simulated thermometer")
             val summary = readings.replayColdNight(id, clock())
+            summary.alertTempF?.let(onIssueOpened)
             now.value = clock()
             message.value = "Replayed ${summary.samples} readings" + if (summary.issuesOpened > 0) " · opened ${summary.issuesOpened} issue" else ""
             weather.refresh(apt.id, apt.latitude, apt.longitude)
@@ -115,6 +137,9 @@ data class SensorsUiState(
     val weatherMismatchSpans: Int = 0,
     val monitoring: Boolean = false,
     val simulated: Boolean = true,
+    /** The paired thermometer's name and address, shown in Bluetooth mode. */
+    val sensorName: String? = null,
+    val sensorAddress: String? = null,
     val weather: WeatherStatus = WeatherStatus.Idle,
     val busy: Boolean = false,
     val message: String? = null,

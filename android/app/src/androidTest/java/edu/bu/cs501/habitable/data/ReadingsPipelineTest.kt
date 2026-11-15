@@ -137,4 +137,48 @@ class ReadingsPipelineTest {
         assertThat(readings.observeReadings(sensorId, tenAm - 16 * 3_600_000L, tenAm).first()).hasSize(97)
         assertThat(sameId).isGreaterThan(0L)
     }
+
+    @Test
+    fun aLongGapInReadings_endsTheColdPeriod_soUnmeasuredTimeIsNotCounted() = runTest {
+        // Cold for 20 minutes two weeks ago, then the phone was off until now, and it is cold again.
+        val minute = 60_000L
+        val start = tenAm - 14 * 24 * 60 * minute
+        readings.ingest(sensorId, SensorSample(62.0, null, start, simulated = false))
+        readings.ingest(sensorId, SensorSample(61.0, null, start + 10 * minute, simulated = false))
+        readings.ingest(sensorId, SensorSample(60.0, null, start + 20 * minute, simulated = false))
+        val afterGap = readings.ingest(sensorId, SensorSample(61.5, null, tenAm, simulated = false))
+
+        // The record shows the hole instead of hiding it...
+        assertThat(afterGap.reading.flags).contains(ReadingFlag.GAP_BEFORE)
+
+        // ...and the first cold period ended at its last real reading; a new one starts now.
+        val periods = readings.observeViolationsSince(sensorId, 0L).first().sortedBy { it.startedAtMillis }
+        assertThat(periods).hasSize(2)
+        assertThat(periods[0].endedAtMillis).isEqualTo(start + 20 * minute)
+        assertThat(periods[1].startedAtMillis).isEqualTo(tenAm)
+        assertThat(periods[1].isOpen).isTrue()
+
+        // 20 measured minutes below the limit, not two weeks.
+        assertThat(readings.totalBelowMillis(periods, tenAm)).isEqualTo(20 * minute)
+        assertThat(issues.open.first()).isEmpty()
+    }
+
+    @Test
+    fun aSecondSensor_keepsItsOwnReadings_andScreensCanFollowIt() = runTest {
+        // Pairing a real thermometer adds a second sensor row next to the simulated one.
+        val apt = apartments.getApartment()!!
+        val govee = apartments.ensureSensor(apt.id, "A4:C1:38:12:34:56", "GVH5075_3456")
+        assertThat(govee).isNotEqualTo(sensorId)
+        assertThat(apartments.observeSensorId("A4:C1:38:12:34:56").first()).isEqualTo(govee)
+        assertThat(apartments.observeSensorId("00:00:00:00:00:00").first()).isNull()
+
+        readings.ingest(govee, SensorSample(69.3, 63.1, tenAm, simulated = false))
+        readings.ingest(sensorId, SensorSample(70.0, null, tenAm, simulated = true))
+
+        val real = readings.observeReadings(govee, 0L, tenAm).first()
+        assertThat(real).hasSize(1)
+        assertThat(real.single().tempF).isEqualTo(69.3)
+        assertThat(ReadingFlag.SIMULATED in real.single().flags).isFalse()
+        assertThat(readings.observeReadings(sensorId, 0L, tenAm).first()).hasSize(1)
+    }
 }
