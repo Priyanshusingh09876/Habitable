@@ -23,10 +23,20 @@ class SyncWorker(
     private val sync: SyncRepository,
 ) : CoroutineWorker(appContext, params) {
 
-    override suspend fun doWork(): Result = when (val r = sync.syncReadings()) {
-        is SyncRepository.Result.Synced, SyncRepository.Result.NothingToSync -> Result.success()
-        SyncRepository.Result.NotSignedIn -> Result.success() // nothing to do until the user signs in
-        is SyncRepository.Result.Failed -> if (runAttemptCount < 3) Result.retry() else Result.failure()
+    /**
+     * Readings first, then issues, so the background backup carries the same things
+     * as the Sync now button. Anything that fails is retried by WorkManager.
+     */
+    override suspend fun doWork(): Result {
+        val readings = sync.syncReadings()
+        if (readings == SyncRepository.Result.NotSignedIn) return Result.success() // nothing to do until the user signs in
+        val issues = sync.syncIssues()
+        val failed = readings is SyncRepository.Result.Failed || issues is SyncRepository.Result.Failed
+        return when {
+            !failed -> Result.success()
+            runAttemptCount < 3 -> Result.retry()
+            else -> Result.failure()
+        }
     }
 
     companion object {

@@ -55,13 +55,14 @@ class SyncRepository(
         val pending = readings.getUnsynced(batchSize)
         if (pending.isEmpty()) return Result.NothingToSync
 
-        val sensorAddress = sensors.getFirst()?.bleAddress ?: "SIM"
+        // Each reading is uploaded under its own sensor's address (simulated or the real thermometer).
+        val addressBySensor = sensors.getAll().associate { it.id to it.bleAddress }
         val batch = ReadingsBatch(
             pending.map { e ->
                 val d = e.toDomain()
                 ReadingDto(
                     clientId = d.id,
-                    sensorAddress = sensorAddress,
+                    sensorAddress = addressBySensor[d.sensorId] ?: "SIM",
                     tempF = d.tempF,
                     humidityPct = d.humidityPct,
                     recordedAt = d.recordedAtMillis,

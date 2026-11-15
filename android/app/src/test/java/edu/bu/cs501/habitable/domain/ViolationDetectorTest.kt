@@ -87,4 +87,53 @@ class ViolationDetectorTest {
         val hot = Violation(sensorId = 1, startedAtMillis = 0, endedAtMillis = 3_600_000, minTempF = 80.0, requiredTempF = 78, kind = ViolationKind.ABOVE_MAXIMUM, issueId = null)
         assertThat(detector.totalBelowMillis(listOf(closed, open, hot), nowMillis = 11_800_000)).isEqualTo(3_600_000 + 1_800_000)
     }
+
+    // --- Gaps in the readings: only time we actually measured may count ---
+
+    @Test fun `a long gap ends the open violation at the last reading before it`() {
+        val start = t(11, 9, 20)
+        val lastSeen = t(11, 9, 21)
+        val open = (detector.step(null, r(62.0, start)) as ViolationDetector.StepResult.Opened).opened
+        // Phone off for 12 days, then a cold reading again.
+        val closed = detector.closeAtGap(open, previousAtMillis = lastSeen, readingAtMillis = t(11, 21, 21))
+        assertThat(closed).isNotNull()
+        assertThat(closed!!.endedAtMillis).isEqualTo(lastSeen)
+        assertThat(closed.durationMillis(t(11, 21, 21))).isEqualTo(60 * 60 * 1000L) // one hour, not twelve days
+    }
+
+    @Test fun `a normal interval or no open violation closes nothing`() {
+        val open = (detector.step(null, r(62.0, t(11, 9, 20))) as ViolationDetector.StepResult.Opened).opened
+        assertThat(detector.closeAtGap(open, t(11, 9, 20), t(11, 9, 20, 10))).isNull()   // 10 minutes
+        assertThat(detector.closeAtGap(open, t(11, 9, 20), t(11, 9, 20, 30))).isNull()   // exactly 30 minutes
+        assertThat(detector.closeAtGap(open, t(11, 9, 20), t(11, 9, 20, 31))).isNotNull() // 31 minutes
+        assertThat(detector.closeAtGap(null, t(11, 9, 20), t(11, 21, 20))).isNull()
+        assertThat(detector.closeAtGap(open, null, t(11, 21, 20))).isNull()
+    }
+
+    @Test fun `stepping reading by reading splits a cold period at a long gap`() {
+        // The same loop ReadingsRepository.ingest runs: closeAtGap first, then step.
+        val readings = listOf(
+            r(62.0, t(11, 9, 20)), r(61.0, t(11, 9, 20, 10)), r(60.0, t(11, 9, 20, 20)),
+            // nothing for two days, then still cold
+            r(61.5, t(11, 11, 20)), r(61.0, t(11, 11, 20, 10)),
+        )
+        val finished = ArrayList<Violation>()
+        var open: Violation? = null
+        var previousAt: Long? = null
+        for (reading in readings) {
+            detector.closeAtGap(open, previousAt, reading.recordedAtMillis)?.let { finished += it; open = null }
+            previousAt = reading.recordedAtMillis
+            when (val s = detector.step(open, reading)) {
+                is ViolationDetector.StepResult.Opened -> open = s.opened
+                is ViolationDetector.StepResult.Continue -> open = s.violation
+                is ViolationDetector.StepResult.Closed -> { finished += s.violation; open = null }
+                ViolationDetector.StepResult.Nothing -> Unit
+            }
+        }
+        assertThat(finished).hasSize(1)
+        assertThat(finished[0].endedAtMillis).isEqualTo(t(11, 9, 20, 20))
+        assertThat(finished[0].minTempF).isEqualTo(60.0)
+        assertThat(open!!.startedAtMillis).isEqualTo(t(11, 11, 20))
+        assertThat(open!!.isOpen).isTrue()
+    }
 }

@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.http.GET
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 /**
  * Open-Meteo hourly forecast + recent past. No API key required.
@@ -26,7 +27,41 @@ interface OpenMeteoApi {
         @Query("forecast_days") forecastDays: Int = 1,
         @Query("timeformat") timeFormat: String = "unixtime",
     ): OpenMeteoResponse
+
+    /**
+     * Open-Meteo's geocoding service: place name -> coordinates. It lives on a
+     * different host from the forecast, so the full URL is passed with @Url.
+     *
+     * Example: GET https://geocoding-api.open-meteo.com/v1/search?name=Boston&count=5&countryCode=US
+     */
+    @GET
+    suspend fun searchPlace(
+        @Url url: String = GEOCODING_URL,
+        @Query("name") name: String,
+        @Query("count") count: Int = 5,
+        @Query("language") language: String = "en",
+        @Query("format") format: String = "json",
+        @Query("countryCode") countryCode: String = "US",
+    ): GeocodingResponse
+
+    companion object {
+        const val GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
+    }
 }
+
+/** `results` is missing altogether when nothing matches, hence the default. */
+@Serializable
+data class GeocodingResponse(val results: List<GeocodingResult> = emptyList())
+
+@Serializable
+data class GeocodingResult(
+    val name: String = "",
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    /** State or first-level region, e.g. "Massachusetts". */
+    val admin1: String? = null,
+    @SerialName("country_code") val countryCode: String? = null,
+)
 
 @Serializable
 data class OpenMeteoResponse(

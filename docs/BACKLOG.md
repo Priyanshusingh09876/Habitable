@@ -8,14 +8,14 @@ Sizes: **S** < 1 day · **M** 1–3 days · **L** 3–5 days.
 | ID | User story | Acceptance criteria | Owner | Size | Sprint | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | US-1 | As a renter, I can create an account and add my apartment, so my evidence is tied to one address. | Sign up / log in with email + password (JWT); add address, unit, landlord contact; data survives app restart; validation errors shown inline. | Both | S | 1 | Done |
-| US-2 | As a renter, I can pair a BLE thermometer and take a placement photo, so readings are tied to a location. | Scan and pair one sensor by MAC; placement photo saved with a hash; readings stored in Room every 10 minutes while the screen is off. | Priyanshu | M | 1–2 | Partial (scan + decoder done; hardware + photo pending) |
+| US-2 | As a renter, I can pair a BLE thermometer and take a placement photo, so readings are tied to a location. | Scan and pair one sensor by MAC; placement photo saved with a hash; readings stored in Room every 10 minutes while the screen is off. | Priyanshu | M | 1–2 | Done for the sensor (Update 2): "Find my thermometer" picker, permissions, one reading a minute, real-device steps in REAL_DEVICE.md. Placement photo moves to US-4 |
 | US-3 | As a renter, I can see my temperature charted against the legal limit, so I know when it is too cold. | Chart shows indoor, outdoor and the 68/64 °F step limit; shading only where below the limit; Night / 24 h / 7 d / 30 d ranges; works offline. | Priyanshu | L | 1 | Done |
 | US-4 | As a renter, my photos are time-stamped and hashed, so I can show they weren't edited later. | SHA-256 taken at capture; hash sent to `/evidence/anchor` when online; photos cannot be edited in the app; thumbnails on the timeline. | Ankita | M | 2 | Not started |
 | US-5 | As a renter, I can open an issue and attach evidence. | Category, title, description with validation; photos and readings attach to it; a heat issue opens automatically after 2 h below the limit; timeline in order. | Ankita | M | 1 | Done |
 | US-6 | As a renter, I can send a dated notice and get reminders for next steps. | Notice built from a template citing 105 CMR 410.180 with the "not legal advice" line; sent via email or share sheet and logged; Escalate follows notice → inspection → certified; WorkManager reminders once certified. | Ankita | M | 1–2 | Partial (state machine, timeline, letter template + email, issue backup to server done; notice records + WorkManager reminders pending) |
 | US-7 | As a renter, I can export one PDF for the landlord, legal aid or an inspector. | PDF includes the chart, weather, photos with hashes, notice log and data flags; generated on the phone with `PdfDocument`; shareable. | Ankita | L | 3 | Not started |
 | US-8 | As developers, we can demo without hardware. | Simulated-sensor mode produces readings through the same pipeline as BLE; can replay a cold night on demand; live mode for motion. | Priyanshu | S | 1 | Done |
-| US-9 | As developers, we have the backend deployed. | Node/Express API with `/auth`, `/readings`, `/evidence/anchor`, `/issues` running on Render with Neon PostgreSQL; tests pass in CI. | Priyanshu | M | 1–2 | Done locally (readings + issues sync from the app); deploy pending |
+| US-9 | As developers, we have the backend deployed. | Node/Express API with `/auth`, `/readings`, `/evidence/anchor`, `/issues` running on Render with Neon PostgreSQL; tests pass in CI. | Priyanshu | M | 1–2 | Deploy-ready (Update 2): `render.yaml` blueprint + Neon steps in REAL_DEVICE.md; background sync now uploads issues too |
 | US-10 | As a renter, my outdoor weather is shown next to indoor readings. | Open-Meteo hourly temperature for the apartment's location; cached in Room; loading, error and stale states handled; retry. | Priyanshu | S | 1 | Done |
 
 ## Second priority — after the MVP works
@@ -54,9 +54,11 @@ Sizes: **S** < 1 day · **M** 1–3 days · **L** 3–5 days.
 | Issue tools: search, share timeline, days-open clock | 1 | Done (Ankita) |
 | UI redesign: theme, hero card, escalation tracker | 1 | Done |
 | Backlog mirrored as GitHub Issues + Project board; branch protection on `main` | 1 | Done Nov 8 |
-| Geocode address for Open-Meteo | 2 | To do |
+| Geocode the city for Open-Meteo | 2 | Done (Update 2): Open-Meteo geocoding, Massachusetts match preferred, falls back to saved coordinates offline |
+| Long gap in readings ends a cold period (no unmeasured time counted) | 2 | Done (Update 2) |
+| Cold-night notification shared by the service and Replay | 2 | Done (Update 2) |
 | Deploy backend (Render + Neon) | 2 | To do |
-| Overnight BLE test on two phone brands | 2 | Blocked on hardware |
+| Overnight BLE test on a real phone | 2 | To do (thermometer arrived Nov 14; steps in REAL_DEVICE.md) |
 | Emulator in CI for instrumented tests | 3 | To do |
 | Accessibility pass (TalkBack, font scale 200 %, contrast check) | 3 | To do |
 | Short paper (1,000–1,500 words) + architecture diagram | 3 | To do |

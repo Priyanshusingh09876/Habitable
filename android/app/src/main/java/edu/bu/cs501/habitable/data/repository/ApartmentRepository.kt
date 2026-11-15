@@ -7,6 +7,7 @@ import edu.bu.cs501.habitable.data.local.toEntity
 import edu.bu.cs501.habitable.data.sensor.SimulatedSensorSource
 import edu.bu.cs501.habitable.domain.model.Apartment
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 /**
@@ -56,6 +57,13 @@ class ApartmentRepository(
     }
 
     suspend fun primarySensorId(): Long? = sensors.getFirst()?.id
+
+    /**
+     * Id of the sensor with this address, or null until its row exists. Screens follow
+     * the sensor the user is actually using (simulated or the paired Bluetooth one).
+     */
+    fun observeSensorId(address: String): Flow<Long?> =
+        sensors.observeByAddress(address).map { it?.id }.distinctUntilChanged()
 
     companion object {
         /** Boston City Hall; used when the user hasn't geocoded an address yet. */

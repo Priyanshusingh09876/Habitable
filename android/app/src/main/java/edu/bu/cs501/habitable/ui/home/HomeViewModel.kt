@@ -8,6 +8,8 @@ import edu.bu.cs501.habitable.data.repository.ReadingsRepository
 import edu.bu.cs501.habitable.data.repository.WeatherRepository
 import edu.bu.cs501.habitable.data.repository.WeatherStatus
 import edu.bu.cs501.habitable.data.settings.SettingsRepository
+import edu.bu.cs501.habitable.data.settings.activeSensorAddress
+import edu.bu.cs501.habitable.data.settings.usesBluetooth
 import edu.bu.cs501.habitable.domain.model.Issue
 import edu.bu.cs501.habitable.domain.model.Reading
 import edu.bu.cs501.habitable.domain.rules.HeatRules
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -54,7 +57,9 @@ class HomeViewModel(
 
     private val apartmentFlow = apartments.apartment
 
-    private val sensorIdFlow = apartmentFlow.map { apt -> apt?.let { apartments.primarySensorId() } }
+    // Follow the sensor in use: the simulator, or the paired Bluetooth thermometer.
+    private val sensorIdFlow = settings.settings.map { it.activeSensorAddress }.distinctUntilChanged()
+        .flatMapLatest { address -> apartments.observeSensorId(address) }
 
     private val readingsFlow = combine(sensorIdFlow, now) { id, n -> id to n }
         .flatMapLatest { (id, n) -> if (id == null) flowOf(emptyList()) else readings.observeReadings(id, n - windowMillis, n) }
@@ -84,7 +89,7 @@ class HomeViewModel(
         )
     }
         .combine(issues.open) { s, open -> s.copy(openIssues = open) }
-        .combine(settings.settings) { s, st -> s.copy(monitoring = st.monitoringEnabled, simulated = st.simulatedSensor) }
+        .combine(settings.settings) { s, st -> s.copy(monitoring = st.monitoringEnabled, simulated = !st.usesBluetooth) }
         .combine(weather.status) { s, w -> s.copy(weather = w) }
         .map<HomeUiState.Loaded, HomeUiState> { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState.Loading)

@@ -353,7 +353,7 @@ private fun WeatherBanner(status: WeatherStatus, onRetry: () -> Unit) {
     when (status) {
         WeatherStatus.Loading -> InlineBanner(stringResource(R.string.weather_loading), loading = true)
         is WeatherStatus.Error -> InlineBanner(
-            text = if (status.hasCache) stringResource(R.string.weather_stale, "cache") else stringResource(R.string.weather_error),
+            text = if (status.hasCache) stringResource(R.string.weather_cached) else stringResource(R.string.weather_error),
             tone = ChipTone.Heat,
             actionLabel = stringResource(R.string.weather_retry),
             onAction = onRetry,

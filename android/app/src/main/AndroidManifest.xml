@@ -6,17 +6,23 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Foreground service that samples the thermometer while the screen is off -->
+    <!-- Foreground service that samples the thermometer while the screen is off.
+         Types: connectedDevice + location for the Bluetooth thermometer; specialUse for the
+         simulated sensor, which has no hardware and so cannot satisfy connectedDevice on Android 14+. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Bluetooth LE thermometer (requested at runtime only when the user pairs a real sensor).
-         Simulated-sensor mode never asks for these. -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
-        android:usesPermissionFlags="neverForLocation"
-        tools:targetApi="s" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Bluetooth LE thermometer. Asked at runtime only when the user pairs a real sensor;
+         simulated mode never asks for these.
+         Location: the Govee thermometer also broadcasts an iBeacon-format packet, and Android
+         hides beacon-like devices from apps that declare neverForLocation, so the sensor would
+         never be found. Habitable does not read or store the phone's position. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:targetApi="s" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
@@ -51,7 +57,11 @@
         <service
             android:name=".service.SensorForegroundService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
+            android:foregroundServiceType="connectedDevice|location|specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Simulated thermometer for demos and testing: generates readings on the phone, with no hardware." />
+        </service>
 
         <!-- WorkManager: we initialise it ourselves in HabitableApp so the worker can get the repository. -->
         <provider

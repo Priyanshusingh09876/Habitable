@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.bu.cs501.habitable.R
+import edu.bu.cs501.habitable.data.sensor.BleSupport
 import edu.bu.cs501.habitable.data.repository.WeatherStatus
 import edu.bu.cs501.habitable.service.SensorForegroundService
 import edu.bu.cs501.habitable.ui.components.ChipTone
@@ -94,13 +95,23 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.clearMessage() }
     }
 
-    // Android 13+ needs POST_NOTIFICATIONS for the foreground-service notification to be visible.
-    val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
-        SensorForegroundService.start(context)
+    // Start asks for what this mode needs, in one prompt:
+    //  - Android 13+: POST_NOTIFICATIONS, so the foreground-service notification is visible.
+    //  - Bluetooth mode: Nearby devices + precise Location, which Android requires to hear the thermometer.
+    // Notifications are optional (recording works without them); the Bluetooth ones are not.
+    val startIfReady = {
+        val problem = if (state.simulated) null else BleSupport.problem(context)
+        if (problem != null) viewModel.showMessage(problem) else SensorForegroundService.start(context)
+    }
+    val startPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
+        startIfReady()
     }
     val startMonitoring = {
-        if (Build.VERSION.SDK_INT >= 33) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        else SensorForegroundService.start(context)
+        val wanted = buildList {
+            if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
+            if (!state.simulated && !BleSupport.hasPermissions(context)) addAll(BleSupport.requiredPermissions())
+        }
+        if (wanted.isEmpty()) startIfReady() else startPermissions.launch(wanted.toTypedArray())
     }
 
     Scaffold(
@@ -130,7 +141,7 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
                     )
                 },
                 footer = {
-                    HeroPill(if (state.simulated) "30 s" else "10 min", "interval")
+                    HeroPill(if (state.simulated) "30 s" else "1 min", "interval")
                     HeroPill("68 / 64°F", "legal limit")
                 },
             )
@@ -146,7 +157,7 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
                     )
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(if (state.simulated) "Simulated thermometer" else "Govee BLE thermometer", style = MaterialTheme.typography.titleMedium)
+                        Text(if (state.simulated) "Simulated thermometer" else (state.sensorName ?: "Govee thermometer"), style = MaterialTheme.typography.titleMedium)
                         Text(
                             if (state.monitoring) "Recording in the background" else "Not recording",
                             style = MaterialTheme.typography.bodySmall,
@@ -176,7 +187,8 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
                     }
                     Button(
                         onClick = { viewModel.replayColdNight() },
-                        enabled = !state.busy,
+                        // The demo night belongs to the simulated sensor; with a real thermometer paired it is switched off.
+                        enabled = !state.busy && state.simulated,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Heat),
                         modifier = Modifier.weight(1f).height(50.dp).testTag("btn_replay"),
@@ -222,7 +234,7 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
             when (val w = state.weather) {
                 WeatherStatus.Loading -> InlineBanner(stringResource(R.string.weather_loading), loading = true)
                 is WeatherStatus.Error -> InlineBanner(
-                    if (w.hasCache) stringResource(R.string.weather_stale, "cache") else stringResource(R.string.weather_error),
+                    if (w.hasCache) stringResource(R.string.weather_cached) else stringResource(R.string.weather_error),
                     tone = ChipTone.Heat, actionLabel = stringResource(R.string.weather_retry), onAction = { viewModel.refreshWeather() },
                 )
                 else -> Unit

@@ -15,12 +15,32 @@ import java.time.ZonedDateTime
  * sample from opening an issue: the period has to persist for that long before
  * [shouldOpenIssue] returns true.
  *
+ * A violation also ends when the readings themselves stop for longer than
+ * [maxGapMillis] (phone off, sensor out of range, battery flat). We only count
+ * time we actually measured: see [closeAtGap].
+ *
  * Pure Kotlin so it is unit-testable.
  */
 class ViolationDetector(
     private val zone: ZoneId = HeatRules.BOSTON,
     private val minDurationMillis: Long = DEFAULT_MIN_DURATION_MILLIS,
+    private val maxGapMillis: Long = DEFAULT_MAX_GAP_MILLIS,
 ) {
+
+    /**
+     * If no reading arrived for more than [maxGapMillis], the open violation
+     * cannot be carried across the hole: it is closed at the last reading we
+     * have, and the next cold reading starts a new period. Returns the closed
+     * violation, or null when there is nothing to close.
+     *
+     * Without this, a phone that was off for 12 days in the middle of a cold
+     * night would report 12 days "below the limit" that nobody measured.
+     */
+    fun closeAtGap(open: Violation?, previousAtMillis: Long?, readingAtMillis: Long): Violation? {
+        if (open == null || previousAtMillis == null) return null
+        if (readingAtMillis - previousAtMillis <= maxGapMillis) return null
+        return open.copy(endedAtMillis = maxOf(previousAtMillis, open.startedAtMillis))
+    }
 
     /**
      * Fold a reading into the current open violation (if any).
@@ -85,7 +105,11 @@ class ViolationDetector(
         }
     }
 
-    /** Run [step] over a whole ordered list and return every violation found. */
+    /**
+     * Run [step] over a whole ordered list and return every violation found.
+     * This looks only at temperatures; gaps are handled where readings arrive one
+     * at a time (ReadingsRepository.ingest calls [closeAtGap] before [step]).
+     */
     fun detectAll(readings: List<Reading>): List<Violation> {
         val result = ArrayList<Violation>()
         var open: Violation? = null
@@ -131,5 +155,8 @@ class ViolationDetector(
     companion object {
         /** Two hours, as agreed in the proposal's acceptance criteria for US-5. */
         const val DEFAULT_MIN_DURATION_MILLIS: Long = 2 * 60 * 60 * 1000L
+
+        /** Same 30 minutes that DataQualityChecker flags as GAP_BEFORE (10-minute sampling x 3). */
+        const val DEFAULT_MAX_GAP_MILLIS: Long = 30 * 60 * 1000L
     }
 }

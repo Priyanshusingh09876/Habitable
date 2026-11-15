@@ -47,6 +47,7 @@
     <string name="weather_loading">Loading outdoor weather…</string>
     <string name="weather_error">Outdoor weather unavailable. Showing indoor readings only.</string>
     <string name="weather_stale">Outdoor weather from cache (last updated %1$s)</string>
+    <string name="weather_cached">Showing saved outdoor weather. Tap Retry when you are back online.</string>
     <string name="weather_retry">Retry</string>
 
     <!-- Issues -->
@@ -105,7 +106,7 @@
     <string name="notif_title">Habitable is recording temperature</string>
     <string name="notif_text">%1$.1f°F · limit %2$d°F</string>
     <string name="notif_violation_channel_name">Heat violations</string>
-    <string name="notif_violation_title">Heat below the legal limit</string>
+    <string name="notif_violation_title">No heat detected · living room</string>
     <string name="notif_violation_text">%1$.1f°F recorded. Habitable opened an issue for you.</string>
 
     <!-- Misc -->

@@ -5,6 +5,8 @@ import edu.bu.cs501.habitable.data.local.entity.OutdoorReadingEntity
 import edu.bu.cs501.habitable.data.local.toDomain
 import edu.bu.cs501.habitable.data.remote.openmeteo.OpenMeteoApi
 import edu.bu.cs501.habitable.domain.model.OutdoorReading
+import edu.bu.cs501.habitable.domain.usecase.PickPlace
+import edu.bu.cs501.habitable.domain.usecase.Place
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +38,24 @@ class WeatherRepository(
         outdoor.observeBetween(apartmentId, fromMillis, toMillis).map { list -> list.map { it.toDomain() } }
 
     fun observeLastFetched(apartmentId: Long): Flow<Long?> = outdoor.observeLastFetched(apartmentId)
+
+    /**
+     * Coordinates for the apartment's city, so the outdoor line is that city's weather
+     * and not always Boston's. Never throws: null when offline or nothing matches,
+     * and the caller keeps the coordinates it already has.
+     */
+    suspend fun findCity(city: String): Place? {
+        val name = city.trim()
+        if (name.length < 2) return null
+        return try {
+            val results = api.searchPlace(name = name).results
+            PickPlace(results.map { Place(name = it.name, region = it.admin1, latitude = it.latitude, longitude = it.longitude) })
+        } catch (e: IOException) {
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     /**
      * Refresh the cache. Never throws: failures become [WeatherStatus.Error]

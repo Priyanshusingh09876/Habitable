@@ -15,8 +15,11 @@ import edu.bu.cs501.habitable.HabitableApp
 import edu.bu.cs501.habitable.MainActivity
 import edu.bu.cs501.habitable.R
 import edu.bu.cs501.habitable.data.sensor.BleSensorSource
+import edu.bu.cs501.habitable.data.sensor.BleSupport
 import edu.bu.cs501.habitable.data.sensor.SensorSource
 import edu.bu.cs501.habitable.data.sensor.SimulatedSensorSource
+import edu.bu.cs501.habitable.data.settings.usesBluetooth
+import edu.bu.cs501.habitable.di.AppContainer
 import edu.bu.cs501.habitable.domain.rules.HeatRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,19 +66,25 @@ class SensorForegroundService : LifecycleService() {
             stopSelf(); return
         }
 
-        val source: SensorSource = if (settings.simulatedSensor || settings.bleAddress.isNullOrBlank()) {
-            SimulatedSensorSource(SimulatedSensorSource.Mode.Live(), intervalMillis = LIVE_INTERVAL_MILLIS)
+        val bluetooth = settings.usesBluetooth
+        if (bluetooth) {
+            // Tell the user exactly what is missing instead of silently recording nothing.
+            BleSupport.problem(this)?.let { reason -> fail(container, reason); return }
+            promoteForBluetooth()
+        }
+        val source: SensorSource = if (bluetooth) {
+            BleSensorSource(this, settings.bleAddress.orEmpty(), model = settings.bleName ?: BleSensorSource.MODEL)
         } else {
-            BleSensorSource(this, settings.bleAddress)
+            SimulatedSensorSource(SimulatedSensorSource.Mode.Live(), intervalMillis = LIVE_INTERVAL_MILLIS)
         }
         val sensorId = container.apartments.ensureSensor(apartment.id, source.address, source.model)
+        container.settings.setSensorError(null)
         container.settings.setMonitoring(true)
 
         source.samples()
             .catch { e ->
                 Log.e(TAG, "Sensor stream failed: ${e.message}")
-                container.settings.setMonitoring(false)
-                stopSelf()
+                fail(container, e.message ?: "The sensor stopped unexpectedly.")
             }
             .collect { sample ->
                 val result = container.readings.ingest(sensorId, sample)
@@ -85,12 +94,53 @@ class SensorForegroundService : LifecycleService() {
             }
     }
 
+    /** Stops monitoring and leaves the reason where the Sensors screen will show it. */
+    private suspend fun fail(container: AppContainer, reason: String) {
+        container.settings.setSensorError(reason)
+        container.settings.setMonitoring(false)
+        stopSelf()
+    }
+
+    /**
+     * Foreground-service types, by Android version and sensor:
+     *  - Android 14+ checks that a type's requirement is met when the service starts.
+     *    "connectedDevice" needs a granted Bluetooth permission, which the simulator
+     *    never asks for, so the service first starts as "specialUse" (declared in the
+     *    manifest for the simulated sensor) and is promoted once we know Bluetooth is in use.
+     *  - Before Android 14 the types are not checked, so it starts as "connectedDevice".
+     */
     private fun startAsForeground(notification: Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
         } else {
-            startForeground(NOTIF_ID, notification)
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
         }
+        startForeground(NOTIF_ID, notification, type)
+    }
+
+    /**
+     * Bluetooth mode: run as a connected-device service that may also use location,
+     * because Android ties Bluetooth scan results to the location permission.
+     * If the phone refuses a type (for example the service was restarted in the
+     * background), fall back step by step rather than crash.
+     */
+    private fun promoteForBluetooth() {
+        val notification = buildMonitoringNotification(null, null)
+        val attempts = listOf(
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
+        )
+        for (type in attempts) {
+            try {
+                startForeground(NOTIF_ID, notification, type)
+                return
+            } catch (e: SecurityException) {
+                Log.w(TAG, "Foreground type $type refused: ${e.message}")
+            } catch (e: IllegalStateException) { // ForegroundServiceStartNotAllowedException on Android 12+
+                Log.w(TAG, "Foreground type $type not allowed now: ${e.message}")
+            }
+        }
+        // Keep running with the type we already have.
     }
 
     private fun updateNotification(n: Notification) {
@@ -123,23 +173,7 @@ class SensorForegroundService : LifecycleService() {
             .build()
     }
 
-    private fun postViolationNotification(tempF: Double) {
-        val open = PendingIntent.getActivity(
-            this, 2, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val n = NotificationCompat.Builder(this, HabitableApp.CHANNEL_VIOLATIONS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(getString(R.string.notif_violation_title))
-            .setContentText(getString(R.string.notif_violation_text, tempF))
-            .setContentIntent(open)
-            .setAutoCancel(true)
-            .build()
-        try {
-            NotificationManagerCompat.from(this).notify(NOTIF_VIOLATION_ID, n)
-        } catch (_: SecurityException) {
-        }
-    }
+    private fun postViolationNotification(tempF: Double) = ViolationAlert.post(this, tempF)
 
     override fun onDestroy() {
         job?.cancel()
@@ -155,12 +189,12 @@ class SensorForegroundService : LifecycleService() {
         private const val TAG = "SensorService"
         const val ACTION_STOP = "edu.bu.cs501.habitable.STOP_MONITORING"
         const val NOTIF_ID = 1001
-        const val NOTIF_VIOLATION_ID = 1002
+        const val NOTIF_VIOLATION_ID = ViolationAlert.NOTIF_ID
 
         /** Outlives the service, so the "monitoring off" write in onDestroy always completes. */
         private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-        /** Faster than the 10-minute production cadence so a live demo shows motion. */
+        /** The simulator's pace: fast enough that a live demo shows motion. The real thermometer stores one reading a minute. */
         const val LIVE_INTERVAL_MILLIS = 30_000L
 
         fun start(context: Context) {
