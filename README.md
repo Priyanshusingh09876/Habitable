@@ -143,7 +143,10 @@ Full description, data model and the end-to-end data path: [docs/ARCHITECTURE.md
 
 - [docs/UPDATE1.md](docs/UPDATE1.md) — Nov 10 update: requirement checklist, demo script, what's done, backlog status, risks, blockers, decisions
 - [docs/Update1_Slides.pdf](docs/Update1_Slides.pdf) — Nov 10 slide deck
-- [docs/TESTING.md](docs/TESTING.md) — test plan and results (76 automated + 12 manual)
+- [docs/UPDATE2.md](docs/UPDATE2.md) — Nov 24 update: feature-complete beta, failure and empty states, known issues, release plan
+- [docs/REAL_DEVICE.md](docs/REAL_DEVICE.md) — running on a phone with the Govee thermometer; deploying the backend
+- [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md) — screen reader, large text and adaptive layout: what is built and how we check it
+- [docs/TESTING.md](docs/TESTING.md) — test plan and results (114 automated + 21 manual)
 - [docs/BACKLOG.md](docs/BACKLOG.md) — user stories, acceptance criteria, owners, sprint status
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layers, data model, data flow, accessibility and privacy notes
 - [docs/WORKING_AGREEMENT.md](docs/WORKING_AGREEMENT.md) — roles, scrum-master rotation, branching and review rules

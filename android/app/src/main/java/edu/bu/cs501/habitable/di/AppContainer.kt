@@ -2,11 +2,14 @@ package edu.bu.cs501.habitable.di
 
 import android.content.Context
 import edu.bu.cs501.habitable.data.local.HabitableDatabase
+import edu.bu.cs501.habitable.data.photos.PhotoStore
+import edu.bu.cs501.habitable.data.export.PdfEvidenceWriter
 import edu.bu.cs501.habitable.data.remote.NetworkModule
 import edu.bu.cs501.habitable.data.remote.backend.HabitableApi
 import edu.bu.cs501.habitable.data.remote.openmeteo.OpenMeteoApi
 import edu.bu.cs501.habitable.data.repository.ApartmentRepository
 import edu.bu.cs501.habitable.data.repository.IssuesRepository
+import edu.bu.cs501.habitable.data.repository.PhotosRepository
 import edu.bu.cs501.habitable.data.repository.ReadingsRepository
 import edu.bu.cs501.habitable.data.repository.SyncRepository
 import edu.bu.cs501.habitable.data.repository.WeatherRepository
@@ -31,6 +34,9 @@ interface AppContainer {
     val issues: IssuesRepository
     val sync: SyncRepository
     val bleScanner: BleDeviceScanner
+    val photoStore: PhotoStore
+    val photos: PhotosRepository
+    val pdfWriter: PdfEvidenceWriter
 }
 
 class DefaultAppContainer(context: Context) : AppContainer {
@@ -51,4 +57,7 @@ class DefaultAppContainer(context: Context) : AppContainer {
     override val issues: IssuesRepository by lazy { IssuesRepository(database) }
     override val sync: SyncRepository by lazy { SyncRepository(database, habitableApi, settings) }
     override val bleScanner: BleDeviceScanner by lazy { BleDeviceScanner(appContext) }
+    override val photoStore: PhotoStore by lazy { PhotoStore(appContext) }
+    override val photos: PhotosRepository by lazy { PhotosRepository(database, photoStore) }
+    override val pdfWriter: PdfEvidenceWriter by lazy { PdfEvidenceWriter() }
 }

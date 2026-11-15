@@ -106,6 +106,8 @@
     <string name="notif_title">Habitable is recording temperature</string>
     <string name="notif_text">%1$.1f°F · limit %2$d°F</string>
     <string name="notif_violation_channel_name">Heat violations</string>
+    <string name="notif_reminder_channel_name">Issue reminders</string>
+    <string name="notif_reminder_channel_desc">Reminds you when an issue has been waiting on the same step for a while.</string>
     <string name="notif_violation_title">No heat detected · living room</string>
     <string name="notif_violation_text">%1$.1f°F recorded. Habitable opened an issue for you.</string>
 

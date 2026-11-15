@@ -12,6 +12,7 @@ import edu.bu.cs501.habitable.di.AppContainer
 import edu.bu.cs501.habitable.di.DefaultAppContainer
 import edu.bu.cs501.habitable.work.HabitableWorkerFactory
 import edu.bu.cs501.habitable.work.SyncWorker
+import edu.bu.cs501.habitable.work.ReminderWorker
 import java.util.concurrent.TimeUnit
 
 class HabitableApp : Application(), Configuration.Provider {
@@ -24,6 +25,7 @@ class HabitableApp : Application(), Configuration.Provider {
         container = DefaultAppContainer(this)
         createNotificationChannels()
         scheduleSync()
+        scheduleReminders()
     }
 
     /** WorkManager asks us for its config because we removed the default initializer in the manifest. */
@@ -43,6 +45,18 @@ class HabitableApp : Application(), Configuration.Provider {
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_VIOLATIONS, getString(R.string.notif_violation_channel_name), NotificationManager.IMPORTANCE_DEFAULT)
         )
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_REMINDERS, getString(R.string.notif_reminder_channel_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = getString(R.string.notif_reminder_channel_desc)
+            }
+        )
+    }
+
+    /** Once a day, with no network needed. KEEP: opening the app does not restart the 24-hour clock. */
+    private fun scheduleReminders() {
+        val request = PeriodicWorkRequestBuilder<ReminderWorker>(24, TimeUnit.HOURS).build()
+        WorkManager.getInstance(this)
+            .enqueueUniquePeriodicWork(ReminderWorker.UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
     }
 
     private fun scheduleSync() {
@@ -56,6 +70,7 @@ class HabitableApp : Application(), Configuration.Provider {
     companion object {
         const val CHANNEL_MONITORING = "monitoring"
         const val CHANNEL_VIOLATIONS = "violations"
+        const val CHANNEL_REMINDERS = "reminders"
 
         fun container(context: Context): AppContainer = (context.applicationContext as HabitableApp).container
     }

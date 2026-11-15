@@ -140,6 +140,32 @@ data class TimelineEventEntity(
     val note: String,
 )
 
+/**
+ * A photo attached to an issue. Only the file name is stored: the image lives in the
+ * app's private files/evidence/photos folder, which is excluded from cloud backup.
+ * Rows are insert-only except for [anchoredAt], which the server fills in once.
+ */
+@Entity(
+    tableName = "photos",
+    foreignKeys = [
+        ForeignKey(
+            entity = IssueEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["issue_id"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index("issue_id")],
+)
+data class PhotoEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "issue_id") val issueId: Long,
+    @ColumnInfo(name = "file_name") val fileName: String,
+    @ColumnInfo(name = "taken_at") val takenAt: Long,
+    val sha256: String,
+    @ColumnInfo(name = "anchored_at") val anchoredAt: Long?,
+)
+
 /** Cached hourly outdoor temperature so the chart works offline. */
 @Entity(
     tableName = "outdoor_readings",

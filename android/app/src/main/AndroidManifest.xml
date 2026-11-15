@@ -29,6 +29,9 @@
         android:maxSdkVersion="30" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <!-- Photos use the phone's own camera app, so Habitable needs no CAMERA permission.
+         A phone without a camera can still install and use everything else. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <application
         android:name=".HabitableApp"
@@ -62,6 +65,18 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Simulated thermometer for demos and testing: generates readings on the phone, with no hardware." />
         </service>
+
+        <!-- Lets the camera app write one photo into our private folder, and the share sheet read
+             one exported PDF, without exposing anything else (see res/xml/file_paths.xml). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- WorkManager: we initialise it ourselves in HabitableApp so the worker can get the repository. -->
         <provider

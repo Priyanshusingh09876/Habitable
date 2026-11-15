@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The only two folders the FileProvider may hand out, one file at a time:
+     - evidence/photos: where the camera app writes a new photo (private app storage)
+     - exports: the PDF evidence packet, written to the cache just before it is shared -->
+<paths>
+    <files-path name="photos" path="evidence/photos/" />
+    <cache-path name="exports" path="exports/" />
+</paths>

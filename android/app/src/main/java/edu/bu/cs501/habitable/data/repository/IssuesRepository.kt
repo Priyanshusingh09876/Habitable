@@ -36,6 +36,10 @@ class IssuesRepository(
     fun observeTimeline(id: Long): Flow<List<TimelineEvent>> = timeline.observeForIssue(id).map { l -> l.map { it.toDomain() } }
     fun observeViolations(id: Long): Flow<List<Violation>> = violations.observeForIssue(id).map { l -> l.map { it.toDomain() } }
 
+    /** One-shot reads for background work (reminders) and exports (the PDF packet). */
+    suspend fun openIssues(): List<Issue> = issues.getOpen().map { it.toDomain() }
+    suspend fun timelineOf(id: Long): List<TimelineEvent> = timeline.getForIssue(id).map { it.toDomain() }
+
     /** Manual "Report issue" flow. Returns the new id. */
     suspend fun create(category: IssueCategory, title: String, description: String): Long = db.withTransaction {
         val apartmentId = apartments.getFirst()?.id ?: 0L

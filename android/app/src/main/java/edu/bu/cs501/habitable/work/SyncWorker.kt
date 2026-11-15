@@ -31,7 +31,9 @@ class SyncWorker(
         val readings = sync.syncReadings()
         if (readings == SyncRepository.Result.NotSignedIn) return Result.success() // nothing to do until the user signs in
         val issues = sync.syncIssues()
-        val failed = readings is SyncRepository.Result.Failed || issues is SyncRepository.Result.Failed
+        val photos = sync.syncPhotoAnchors() // fingerprints only; photos never leave the phone
+        val failed = readings is SyncRepository.Result.Failed || issues is SyncRepository.Result.Failed ||
+            photos is SyncRepository.Result.Failed
         return when {
             !failed -> Result.success()
             runAttemptCount < 3 -> Result.retry()
@@ -62,6 +64,7 @@ class HabitableWorkerFactory(private val container: AppContainer) : WorkerFactor
         workerParameters: WorkerParameters,
     ): ListenableWorker? = when (workerClassName) {
         SyncWorker::class.java.name -> SyncWorker(appContext, workerParameters, container.sync)
+        ReminderWorker::class.java.name -> ReminderWorker(appContext, workerParameters, container.issues)
         else -> null // fall back to the default reflective factory
     }
 }
