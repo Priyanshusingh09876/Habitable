@@ -2,6 +2,7 @@ package edu.bu.cs501.habitable.data.repository
 
 import edu.bu.cs501.habitable.data.local.HabitableDatabase
 import edu.bu.cs501.habitable.data.local.toDomain
+import edu.bu.cs501.habitable.data.remote.backend.AnchorRequest
 import edu.bu.cs501.habitable.data.remote.backend.AuthRequest
 import edu.bu.cs501.habitable.data.remote.backend.HabitableApi
 import edu.bu.cs501.habitable.data.remote.backend.ReadingDto
@@ -26,6 +27,7 @@ class SyncRepository(
     private val readings = db.readingDao()
     private val sensors = db.sensorDao()
     private val issues = db.issueDao()
+    private val photos = db.photoDao()
 
     sealed interface Result {
         data class Synced(val count: Int) : Result
@@ -84,6 +86,34 @@ class SyncRepository(
             Result.Failed("Backend unreachable")
         } catch (e: Exception) {
             Result.Failed(e.message ?: "Sync failed")
+        }
+    }
+
+    /**
+     * Send the fingerprint of every photo the server has not seen yet to
+     * POST /evidence/anchor. Only the 64-character hash and the capture time go
+     * up; the photo stays on the phone. The server answers with the time it first
+     * saw that hash, which is stored so the PDF can print it.
+     */
+    suspend fun syncPhotoAnchors(): Result {
+        val token = settings.settings.first().authToken ?: return Result.NotSignedIn
+        val pending = photos.getUnanchored()
+        if (pending.isEmpty()) return Result.NothingToSync
+        return try {
+            pending.forEach { p ->
+                val ack = api.anchor("Bearer $token", AnchorRequest(sha256 = p.sha256, kind = "photo", capturedAt = p.takenAt))
+                photos.markAnchored(p.id, ack.serverTimestamp)
+            }
+            Result.Synced(pending.size)
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 401) {
+                settings.setAuth(null, null)
+                Result.NotSignedIn
+            } else Result.Failed("Server error ${e.code()}")
+        } catch (e: IOException) {
+            Result.Failed("Backend unreachable")
+        } catch (e: Exception) {
+            Result.Failed(e.message ?: "Photo fingerprint sync failed")
         }
     }
 

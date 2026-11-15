@@ -3,6 +3,7 @@ package edu.bu.cs501.habitable.ui.more
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.bu.cs501.habitable.data.repository.ApartmentRepository
+import edu.bu.cs501.habitable.data.repository.PhotosRepository
 import edu.bu.cs501.habitable.data.repository.ReadingsRepository
 import edu.bu.cs501.habitable.data.repository.SyncRepository
 import edu.bu.cs501.habitable.data.sensor.BleDeviceScanner
@@ -28,6 +29,7 @@ class MoreViewModel(
     private val sync: SyncRepository,
     private val readings: ReadingsRepository,
     private val scanner: BleDeviceScanner,
+    private val photos: PhotosRepository,
 ) : ViewModel() {
 
     private val message = MutableStateFlow<String?>(null)
@@ -117,6 +119,11 @@ class MoreViewModel(
                 is SyncRepository.Result.Synced -> " · ${i.count} ${if (i.count == 1) "issue" else "issues"} backed up"
                 is SyncRepository.Result.Failed -> " · issues not backed up (${i.message})"
                 else -> ""
+            } + when (val p = sync.syncPhotoAnchors()) {
+                // Only the fingerprints go up; the photos stay on the phone.
+                is SyncRepository.Result.Synced -> " · ${p.count} photo ${if (p.count == 1) "fingerprint" else "fingerprints"} anchored"
+                is SyncRepository.Result.Failed -> " · photo fingerprints not anchored (${p.message})"
+                else -> ""
             }
         }
         message.value = when (r) {
@@ -130,6 +137,7 @@ class MoreViewModel(
 
     fun clearDemoData() = viewModelScope.launch {
         readings.clearAll()
+        photos.deleteAllFiles() // the photo rows went with their issues; remove the files too
         message.value = "Demo data cleared"
     }
 }

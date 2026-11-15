@@ -48,6 +48,10 @@ class ReadingsRepository(
     fun observeReadings(sensorId: Long, fromMillis: Long, toMillis: Long): Flow<List<Reading>> =
         readings.observeBetween(sensorId, fromMillis, toMillis).map { list -> list.map { it.toDomain() } }
 
+    /** One-shot read for exports (the PDF packet), where a Flow is not needed. */
+    suspend fun readingsBetween(sensorId: Long, fromMillis: Long, toMillis: Long): List<Reading> =
+        readings.getBetween(sensorId, fromMillis, toMillis).map { it.toDomain() }
+
     fun observeLatest(sensorId: Long): Flow<Reading?> =
         readings.observeLatest(sensorId).map { it?.toDomain() }
 

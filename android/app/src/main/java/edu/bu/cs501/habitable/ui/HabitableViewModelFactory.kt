@@ -38,11 +38,14 @@ class HabitableViewModelFactory(
         modelClass.isAssignableFrom(NewIssueViewModel::class.java) ->
             NewIssueViewModel(container.issues)
         modelClass.isAssignableFrom(IssueDetailViewModel::class.java) ->
-            IssueDetailViewModel(issueId, container.issues, container.apartments)
+            IssueDetailViewModel(
+                issueId, container.issues, container.apartments,
+                container.photos, container.readings, container.weather, container.pdfWriter,
+            )
         modelClass.isAssignableFrom(SetupViewModel::class.java) ->
             SetupViewModel(container.apartments, container.settings, container.weather)
         modelClass.isAssignableFrom(MoreViewModel::class.java) ->
-            MoreViewModel(container.apartments, container.settings, container.sync, container.readings, container.bleScanner)
+            MoreViewModel(container.apartments, container.settings, container.sync, container.readings, container.bleScanner, container.photos)
         else -> throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
     } as T
 }

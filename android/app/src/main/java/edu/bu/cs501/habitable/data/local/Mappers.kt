@@ -4,6 +4,7 @@ import edu.bu.cs501.habitable.data.local.entity.ApartmentEntity
 import edu.bu.cs501.habitable.data.local.entity.IssueEntity
 import edu.bu.cs501.habitable.data.local.entity.OutdoorReadingEntity
 import edu.bu.cs501.habitable.data.local.entity.ReadingEntity
+import edu.bu.cs501.habitable.data.local.entity.PhotoEntity
 import edu.bu.cs501.habitable.data.local.entity.TimelineEventEntity
 import edu.bu.cs501.habitable.data.local.entity.ViolationEntity
 import edu.bu.cs501.habitable.domain.model.Apartment
@@ -11,6 +12,7 @@ import edu.bu.cs501.habitable.domain.model.Issue
 import edu.bu.cs501.habitable.domain.model.IssueCategory
 import edu.bu.cs501.habitable.domain.model.IssueStatus
 import edu.bu.cs501.habitable.domain.model.OutdoorReading
+import edu.bu.cs501.habitable.domain.model.Photo
 import edu.bu.cs501.habitable.domain.model.Reading
 import edu.bu.cs501.habitable.domain.model.TimelineEvent
 import edu.bu.cs501.habitable.domain.model.TimelineEventType
@@ -124,3 +126,21 @@ fun Apartment.toEntity(createdAt: Long) = ApartmentEntity(
 )
 
 fun OutdoorReadingEntity.toDomain() = OutdoorReading(timeMillis = timeMillis, tempF = tempF)
+
+fun PhotoEntity.toDomain() = Photo(
+    id = id,
+    issueId = issueId,
+    fileName = fileName,
+    takenAtMillis = takenAt,
+    sha256 = sha256,
+    anchoredAtMillis = anchoredAt,
+)
+
+fun Photo.toEntity() = PhotoEntity(
+    id = id,
+    issueId = issueId,
+    fileName = fileName,
+    takenAt = takenAtMillis,
+    sha256 = sha256,
+    anchoredAt = anchoredAtMillis,
+)

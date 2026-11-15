@@ -1,0 +1,121 @@
+# Project Update 2 — November 24, 2026
+
+**Feature-complete beta: every MVP story runs end to end, with tests, failure handling, known issues and a release plan.**
+Team: Ankita Patra, Priyanshu Singh · Scrum master: Priyanshu (week of Nov 17), Ankita (week of Nov 24) · Version `0.2.0-beta`
+Tests: [TESTING.md](TESTING.md) · Backlog: [BACKLOG.md](BACKLOG.md) · Real phone and thermometer: [REAL_DEVICE.md](REAL_DEVICE.md) · Accessibility: [ACCESSIBILITY.md](ACCESSIBILITY.md)
+
+## 0. Requirement checklist
+
+| Update 2 asks for | Where we show it |
+| --- | --- |
+| Feature-complete beta, core flows and integrations end to end | §1 demo; §2 story status: all MVP stories done |
+| Failure and empty states | §3 |
+| Early automated test results | §4: 114 tests (90 unit, 11 on-device, 13 backend), CI on every push |
+| Accessibility and adaptive-layout evidence | §5 and ACCESSIBILITY.md |
+| Known defects | §6 |
+| Release plan for the remaining two weeks | §7 |
+| Both students participate | §8 and the pull requests listed there |
+
+## 1. What we demonstrate (about 6 minutes)
+
+New since Update 1 is in **bold**.
+
+| Step | What the audience sees | Underneath |
+| --- | --- | --- |
+| 1. **Real thermometer** (phone) | More → Bluetooth → **Find my thermometer** lists the Govee H5075 with the temperature on its screen; tap it; Sensors → Start; Home shows the room's real temperature | `BleDeviceScanner` scans for Govee advertisements; `BleSensorSource` decodes them and emits one sample a minute; the foreground service ingests each one |
+| 2. Cold night (emulator) | Replay cold night: chart, shading, **a "No heat detected" notification**, the automatic issue | Same `ingest()` path; `ViolationAlert` is shared by the service and Replay |
+| 3. **Photo** | On the issue: Add photo → the camera → a thumbnail with the time and the start of its fingerprint; the timeline gains "Photo added" | System camera through `TakePicture` + `FileProvider` (no camera permission); `PhotosRepository.add()` hashes the file with SHA-256 and writes the row and the timeline event in one transaction |
+| 4. Notice → inspection → certified | Email letter, Boston 311 choices, case number | As in Update 1, plus the inspection and certified dialogs |
+| 5. **PDF evidence packet** | Export PDF → share sheet → open it: address, legal standard, summary, chart with the stepped limit and shading, timeline, photos with 64-character fingerprints, data notes | `BuildEvidenceReport` (pure Kotlin, unit-tested) decides every word and number; `PdfEvidenceWriter` lays it out with Android's `PdfDocument` |
+| 6. **Sync** | "Uploaded N readings · 1 issue backed up · 1 photo fingerprint anchored" | Readings, issues and photo **hashes** go to our API; photos never leave the phone. The background worker now sends issues and hashes too |
+| 7. Failure states | Airplane mode: cached weather with Retry. Bluetooth off: monitoring stops and says why | §3 |
+| 8. **Reminder** | (Explained, with the unit tests) a notification when an issue has waited 7 days on the same step | `ReminderWorker` once a day; `ReminderRules` decides who is due |
+
+Backup: the recorded demo and screenshots, as for Update 1.
+
+## 2. Story status
+
+| Story | Status | Owner |
+| --- | --- | --- |
+| US-1 Account + apartment | Done; the city is now looked up for weather | Both |
+| US-2 Bluetooth thermometer | Done: picker, permissions, one reading a minute. Overnight run on the real device is this week's test | Priyanshu |
+| US-3 Chart vs. legal limit | Done | Priyanshu |
+| US-4 Photos hashed at capture | Done | Ankita |
+| US-5 Issues + automatic heat issue | Done | Ankita |
+| US-6 Notice + reminders | Done | Ankita |
+| US-7 PDF evidence packet | Done | Ankita |
+| US-8 Simulated sensor | Done | Priyanshu |
+| US-9 Backend | Deploy-ready: Render blueprint and steps; deployment itself is the first task of the release plan | Priyanshu |
+| US-10 Open-Meteo weather | Done | Priyanshu |
+
+Scope decisions since Update 1:
+
+- **Location permission in Bluetooth mode.** The thermometer also broadcasts an iBeacon-format packet, and Android hides beacon-like devices from apps that declare `neverForLocation`. We ask for Location only in Bluetooth mode and never read the phone's position. This replaces the Update 1 plan to avoid the permission.
+- **System camera instead of CameraX.** The phone's camera app writes into our private folder, so the app needs no camera permission and less code. The hash is still taken the moment the file comes back.
+- **A long gap ends a cold period.** If readings stop for more than 30 minutes (phone off, sensor out of range) the open period ends at the last real reading. Unmeasured time is never counted as below the limit.
+- **One reading a minute** from the real thermometer (it broadcasts every two seconds).
+
+## 3. Failure and empty states
+
+| Situation | What the user sees | How |
+| --- | --- | --- |
+| No internet, weather | "Showing saved outdoor weather" with Retry; the chart still draws from the cache. With no cache: "Outdoor weather unavailable" and the indoor line only | `WeatherStatus.Error(hasCache)` |
+| No internet, sync | "Backend unreachable"; nothing is lost and it is retried by the worker | readings stay `synced = 0` |
+| Sign-in expired | Signed out with "Sign in to sync" | HTTP 401 handled in `SyncRepository` |
+| Bluetooth or Location off, permission denied | Start is refused with a sentence saying what to turn on or allow | `BleSupport.problem()` |
+| Bluetooth switched off while recording | Monitoring stops; Sensors shows the reason | the service saves the reason for the screen |
+| Thermometer out of range / phone off | Gap flagged on the next reading; the open cold period ends at the last real reading | `DataQualityChecker`, `ViolationDetector.closeAtGap` |
+| City not found or offline during setup | Setup still saves; weather uses the previous coordinates, or Boston | `WeatherRepository.findCity()` returns null |
+| Camera cancelled, or no camera app | Nothing is added; "No camera app was found" if there is none | `PhotosRepository.add()` returns null for an empty file |
+| PDF cannot be written | "Could not create the PDF" with the reason; the issue is untouched | `IssueDetailEvent.Message` |
+| Invalid setup input | Inline errors on address and email | `SetupViewModel` |
+| Empty states | "No issues yet", "Nothing recorded yet", "No photos yet", "No events yet", "No thermometer found… scan again" | each screen |
+| Notifications denied | Recording, alerts on screen and reminders in the app still work; only the notifications are missing | `SecurityException` caught |
+
+## 4. Tests
+
+114 automated tests: **90 unit** (heat rules, violation detector with gaps, quality flags, weather cross-check, chart data, letters, Bluetooth decoding with a real H5075 packet, city lookup, SHA-256, reminder rules, PDF content, issue tools), **11 on-device** (the Room pipeline, gaps, a second sensor, photos, the Compose Home screen) and **13 backend**. `run-all-tests.ps1` runs them all; GitHub Actions runs the backend tests, the Android build and the unit tests on every push.
+
+Manual cases M1–M21 are in TESTING.md. M13–M21 cover what is new (real sensor, sensor failure, photos, PDF, empty states, large text, TalkBack, tablet); their results are recorded there as we run them.
+
+## 5. Accessibility and adaptive layout
+
+Built in: descriptions on icon buttons, section titles announced as headings, a spoken description for the chart, text that scales with the system font size on scrolling screens, 48 dp touch targets, status never shown by colour alone, and a centred column of at most 720 dp on tablets. Details, and the results of the large-text, TalkBack and tablet checks, are in ACCESSIBILITY.md.
+
+## 6. Known issues
+
+| # | Issue | Effect | Plan |
+| --- | --- | --- | --- |
+| K1 | The real thermometer has not yet been left running overnight | Unknown how different phones behave with the screen off | Overnight test this week (REAL_DEVICE.md §4) |
+| K2 | No alert when the thermometer goes out of range | The gap is only flagged when readings resume | "Sensor not heard for 15 minutes" notification |
+| K3 | Sync on a real phone needs a reachable backend | `10.0.2.2` only works in the emulator | Deploy to Render; until then the laptop's address in `local.properties` |
+| K4 | No restore from the server | A new phone starts empty even though the data is backed up | Download readings and issues after sign-in |
+| K5 | "Notice sent" is logged when the email app opens | The app cannot know whether the tenant pressed Send | Ask "Did you send it?" on return |
+| K6 | Chart has no zoom or tap-for-value; 30 days of one-minute readings draws about 43,000 points | Slow on old phones | Downsample to one point per pixel column |
+| K7 | Photos show as thumbnails only; no full-screen viewer | Details are hard to see in the app (the file and the PDF have them) | Full-screen viewer |
+| K8 | The 1 → 2 database migration has no automated test | Checked by Room when the database opens, and by hand | Room migration test |
+| K9 | On-device tests are not run in CI | A broken on-device test is only caught locally | Emulator job in GitHub Actions |
+| K10 | Tablets get a centred column, not a two-pane layout | Space is unused on large screens | Two-pane issues screen if time allows |
+| K11 | Weather is for the city, not the street address | Fine for hourly temperature | No change planned |
+
+## 7. Release plan: November 24 to December 8
+
+| Dates | Goal | Work | Owner |
+| --- | --- | --- | --- |
+| Nov 24–27 | Real-world proof | Overnight run with the thermometer on a phone (K1); deploy the backend and point the app at it (K3); run M13–M21 and record results | Priyanshu; both for the manual run |
+| Nov 28–Dec 1 | Close the gaps that matter | Restore from the server (K4); sensor-lost alert (K2); "Did you send it?" (K5); migration test (K8) | Priyanshu K4, K2 · Ankita K5, K8 |
+| Dec 2–4 | Polish | Chart downsampling (K6); photo viewer (K7); TalkBack and large-text fixes found in M19–M20; emulator job in CI (K9) | Ankita K7 + accessibility · Priyanshu K6, K9 |
+| Dec 5 | **Feature freeze** | Only bug fixes after this; tag `v1.0-rc` | Both |
+| Dec 5–7 | Paper and presentation | 1,000–1,500-word paper, final README, final slides, 8–10 minute demo rehearsed twice, backup recording | Both |
+| Dec 8 | Submit | Tag `v1.0`, final commit identified, individual reflections | Both |
+
+Stretch items (two-pane tablet layout, humidity mold alert) stay frozen unless everything above is done.
+
+## 8. Who did what for this update
+
+| Area | Owner | Pull request |
+| --- | --- | --- |
+| Bluetooth on real hardware (picker, permissions, throttling, service types), gaps ending a cold period, city lookup, deploy blueprint, issue and hash backup in the worker, shared cold-night alert | Priyanshu | `feature/update2-sensor-and-backend` |
+| Photos with SHA-256, photo fingerprint sync, PDF evidence packet, reminders, accessibility pass and docs | Ankita | `feature/update2-evidence` |
+
+Each of us reviewed the other's pull request.

@@ -111,6 +111,23 @@ data class TimelineEvent(
     val note: String,
 )
 
+/**
+ * A photo attached to an issue. The file stays on the phone; [sha256] is taken
+ * the moment it is captured, so a later edit to the file would no longer match.
+ * [anchoredAtMillis] is the time our server first saw that hash (null until synced).
+ */
+data class Photo(
+    val id: Long = 0,
+    val issueId: Long,
+    val fileName: String,
+    val takenAtMillis: Long,
+    val sha256: String,
+    val anchoredAtMillis: Long? = null,
+) {
+    /** First 12 hex characters: enough to recognise a photo on screen and in the PDF. */
+    val shortHash: String get() = sha256.take(12)
+}
+
 data class Apartment(
     val id: Long = 0,
     val address: String,

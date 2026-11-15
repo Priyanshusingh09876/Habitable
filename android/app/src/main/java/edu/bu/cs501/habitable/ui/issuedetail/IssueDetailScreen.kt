@@ -1,5 +1,23 @@
 package edu.bu.cs501.habitable.ui.issuedetail
 
+import android.content.ClipData
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import edu.bu.cs501.habitable.data.photos.PhotoStore
+import edu.bu.cs501.habitable.domain.model.Photo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -110,6 +128,41 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
     var showInspection by rememberSaveable { mutableStateOf(false) }
     var showCertified by rememberSaveable { mutableStateOf(false) }
     var caseNumber by rememberSaveable { mutableStateOf("") }
+
+    // PDF export and photo results arrive as one-shot events from the ViewModel.
+    val exporting by viewModel.exporting.collectAsStateWithLifecycle()
+    val event by viewModel.event.collectAsStateWithLifecycle()
+    LaunchedEffect(event) {
+        when (val e = event) {
+            is IssueDetailEvent.PdfReady -> {
+                sharePdf(context, viewModel.uriFor(e.file))
+                viewModel.eventShown()
+            }
+            is IssueDetailEvent.Message -> {
+                Toast.makeText(context, e.text, Toast.LENGTH_LONG).show()
+                viewModel.eventShown()
+            }
+            null -> Unit
+        }
+    }
+
+    // Camera: the system camera app writes straight into a private file, so the app needs no
+    // camera permission. The path is saved so a rotation while the camera is open does not lose it.
+    var pendingPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        pendingPhotoPath?.let { viewModel.photoTaken(File(it), saved) }
+        pendingPhotoPath = null
+    }
+    val takePhoto = {
+        val file = viewModel.newCapture()
+        pendingPhotoPath = file.path
+        try {
+            takePicture.launch(viewModel.uriFor(file))
+        } catch (e: ActivityNotFoundException) {
+            pendingPhotoPath = null
+            Toast.makeText(context, "No camera app was found on this device", Toast.LENGTH_LONG).show()
+        }
+    }
 
     if (showInspection) {
         InspectionDialog(
@@ -294,6 +347,52 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                     s.timeline.forEachIndexed { i, e -> TimelineRow(e, last = i == s.timeline.lastIndex) }
                 }
 
+                // Photos: fingerprinted at capture, shown with the time and the start of the hash.
+                SectionHeader("Photos · ${s.photos.size}")
+                SurfaceCard {
+                    if (s.photos.isEmpty()) {
+                        Text(
+                            "No photos yet. Each photo gets a fingerprint the moment it is taken, so you can show later that it was not edited.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()).testTag("photo_row"),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            s.photos.forEach { photo -> PhotoThumb(photo, viewModel.photoFile(photo)) }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = takePhoto,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp).testTag("btn_add_photo"),
+                    ) {
+                        Icon(Icons.Filled.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add photo")
+                    }
+                }
+
+                // One PDF for the landlord, legal aid or an inspector.
+                Button(
+                    onClick = { viewModel.exportPdf() },
+                    enabled = !exporting,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Navy, contentColor = Color.White),
+                    modifier = Modifier.fillMaxWidth().height(52.dp).testTag("btn_export_pdf"),
+                ) {
+                    if (exporting) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                    } else {
+                        Icon(Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (exporting) "Creating the PDF…" else "Export PDF evidence packet", fontWeight = FontWeight.Bold)
+                }
+
                 // Note
                 SectionHeader("Add a note")
                 SurfaceCard {
@@ -324,6 +423,63 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+/** A photo's thumbnail with when it was taken, the start of its fingerprint and whether the server has it. */
+@Composable
+private fun PhotoThumb(photo: Photo, file: File) {
+    // Decoded off the main thread, small enough for a thumbnail.
+    val bitmap by produceState<ImageBitmap?>(initialValue = null, photo.id) {
+        value = withContext(Dispatchers.IO) { PhotoStore.decodeScaled(file, 360)?.asImageBitmap() }
+    }
+    Column(Modifier.width(132.dp)) {
+        Box(
+            Modifier
+                .size(width = 132.dp, height = 100.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(HabitableColors.Card),
+            contentAlignment = Alignment.Center,
+        ) {
+            val loaded = bitmap
+            if (loaded != null) {
+                Image(
+                    bitmap = loaded,
+                    contentDescription = "Photo taken ${timeOf(photo.takenAtMillis)}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Icon(Icons.Filled.PhotoCamera, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(timeOf(photo.takenAtMillis), style = MaterialTheme.typography.labelSmall)
+        Text(
+            "${photo.shortHash}…",
+            style = MaterialTheme.typography.labelSmall.copy(fontFamily = EvidenceFont),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            if (photo.anchoredAtMillis != null) "Fingerprint on server" else "Not synced yet",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (photo.anchoredAtMillis != null) HabitableColors.GoodInk else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Hands the PDF packet to the share sheet; the receiving app may read just this one file. */
+private fun sharePdf(context: Context, uri: Uri) {
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        clipData = ClipData.newRawUri("Habitable evidence packet", uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    try {
+        context.startActivity(Intent.createChooser(send, "Share evidence packet"))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, "No app can open a PDF on this device", Toast.LENGTH_LONG).show()
     }
 }
 

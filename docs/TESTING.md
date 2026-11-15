@@ -1,20 +1,20 @@
 # Test plan and results — Project Update 1
 
-**97 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
+**114 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
 Run on: Windows 11, Android Studio, Pixel XL emulator (API 33 / Android 13), Node 22. Last full run: November 8, 2026.
 
 | Suite | Tests | How to run | Report |
 | --- | --- | --- | --- |
-| Android unit tests (JVM) | 75 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
-| Android instrumented + Compose UI (emulator) | 9 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
+| Android unit tests (JVM) | 90 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
+| Android instrumented + Compose UI (emulator) | 11 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
 | Backend API | 13 | `cd backend` → `npm test` | Terminal output (`# pass 13`) |
-| **Total** | **97** | | |
+| **Total** | **114** | | |
 
 CI (`.github/workflows/ci.yml`) runs the backend tests and the Android build + unit tests on every push to `main`.
 
 ---
 
-## 1. Android unit tests — 75
+## 1. Android unit tests — 90
 
 Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
@@ -158,9 +158,39 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U65 | same day and no notice read naturally | "Open since today" instead of "0 days" |
 | U66 | a resolved issue stops counting at its close date | Resolved issues don't keep ageing |
 
+### Sha256Test — 3 · photo fingerprints (Ankita)
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U76 | matches the published test vectors | Our SHA-256 gives the standard answers for "abc" and for empty input |
+| U77 | a stream larger than the buffer hashes the same as the bytes | A multi-megabyte photo read in 8 KB blocks gets the right fingerprint |
+| U78 | changing one byte changes the fingerprint | An edited photo no longer matches; hashes are 64 lower-case hex characters |
+
+### ReminderRulesTest — 5 · when to nudge the tenant (Ankita)
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U79 | a notice with no update for a week asks for an inspection | The reminder names the issue, the wait and the next legal step |
+| U80 | nothing before the threshold and then once a week, not daily | Day 7 and day 14 remind; days 6, 8 and 13 do not |
+| U81 | each step has its own wait and next step | Inspection requested (7 days) and certified (3 days) get their own wording |
+| U82 | sending a reminder letter restarts the clock for a certified issue | No nagging the day after the tenant acted |
+| U83 | open, resolved and issues without the step event are left alone | No reminders for issues that are not waiting on anyone |
+
+### EvidenceReportTest — 7 · what the PDF packet says (Ankita)
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U84 | facts identify the place, the landlord and the issue | Address, landlord, category, status and opened time are on page one |
+| U85 | summary adds closed and open cold periods and reports the lowest | "9 h" below the limit = 8 closed + 1 still open; lowest 59.1 °F against its 64 °F limit |
+| U86 | the chart covers the cold periods and has readings to draw | The chart window starts two hours before the first cold reading and never runs into the future |
+| U87 | timeline and photos are listed oldest first with full fingerprints | All 64 hash characters are printed, with whether the server has seen them |
+| U88 | data notes are honest about simulated readings, gaps and jumps | The packet says when data is demo data or has holes |
+| U89 | a non-heat issue has no rule, summary or chart and still builds | A leak or mold issue exports cleanly without sensor sections |
+| U90 | durations read naturally | "45 min", "2 h", "13 h 20 min" |
+
 ---
 
-## 2. Android instrumented tests — 9 (on the emulator)
+## 2. Android instrumented tests — 11 (on the emulator)
 
 ### ReadingsPipelineTest — 6 · the end-to-end data path on a real Room database
 
@@ -172,6 +202,13 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | I3b | editing the apartment keeps readings and issues | More → Edit → Continue updates the apartment in place; before the fix, Room's REPLACE deleted the row and the cascade wiped every reading and issue |
 | I3c | a long gap in readings ends the cold period | Phone off for two weeks in the middle of a cold spell: the period ends at the last real reading, the next reading is flagged GAP_BEFORE, and "hours below the limit" counts 20 measured minutes, not two weeks |
 | I3d | a second sensor keeps its own readings | Pairing the Bluetooth thermometer adds a sensor next to the simulated one; each keeps its own readings and the screens can follow either |
+
+### PhotosRepositoryTest — 2 · photos on a real database and real app storage (Ankita)
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| I3e | adding a photo stores its fingerprint and writes a timeline event | The hash of the saved file equals the hash of the bytes the camera wrote; the timeline gains PHOTO_ADDED with the start of the hash |
+| I3f | an empty capture is discarded and leaves no row or file | Backing out of the camera leaves nothing behind |
 
 ### HomeScreenTest — 3 · Compose UI test of the key screen
 
@@ -203,7 +240,7 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
 ---
 
-## 4. Manual test cases — 12 (run on the emulator)
+## 4. Manual test cases — 21 (emulator, plus a real phone for M13–M14)
 
 Run in order on a fresh install (App info → Storage → Clear storage). Backend running with `npm run dev`.
 
@@ -222,6 +259,15 @@ Run in order on a fresh install (App info → Storage → Clear storage). Backen
 | M10b | Escalate | Tap Escalate → Request inspection | Status chip and button text change; timeline gains an event | Pass |
 | M11 | Error state | Turn on airplane mode → Sensors → Replay cold night | "Outdoor weather from cache" banner with Retry; indoor chart still draws | Pass |
 | M12 | Sync | Airplane mode off → More → sign in → Sync now, then Sync now again | "Uploaded N readings · 1 issue backed up", then "Everything is already synced · 1 issue backed up"; `GET /issues` on the laptop shows the issue with its current status | Pass |
+| M13 | Real sensor | On a phone: More → Bluetooth → Find my thermometer → tap it → Sensors → Start monitoring | The thermometer is listed with the temperature on its screen; Home shows it within a minute; chip says "Sensor live" | Not run yet |
+| M14 | Sensor failure | While monitoring over Bluetooth, turn Bluetooth off | Monitoring stops and Sensors says "Turn on Bluetooth to read the thermometer." | Not run yet |
+| M15 | Photo | Open an issue → Add photo → take a picture → OK | Thumbnail appears with the time and the start of its fingerprint; the timeline gains "Photo added" | Not run yet |
+| M16 | Photo cancelled | Add photo → press Back in the camera | No thumbnail and no timeline event | Not run yet |
+| M17 | PDF | Open the heat issue → Export PDF evidence packet → open it in Drive or a PDF viewer | Address, legal standard, summary, chart with the step limit and shading, timeline, photos with 64-character fingerprints, data notes, "not legal advice" on every page | Not run yet |
+| M18 | Empty states | Fresh install → Issues, Sensors; open a manually reported issue | "No issues yet", "Nothing recorded yet", "No photos yet", and the PDF exports without a chart | Not run yet |
+| M19 | Large text | Settings → Display → Font size largest → open every screen | Nothing is cut off; buttons still readable; screens scroll | Not run yet |
+| M20 | TalkBack | Turn on TalkBack → swipe through Home and an issue | Section titles are announced as headings; buttons say what they do; the chart is described | Not run yet |
+| M21 | Tablet / landscape | Rotate the phone; run on a tablet emulator | Content stays in a centred column at most 720 dp wide; nothing overlaps | Not run yet |
 
 Fill in the Result column yourselves after running each one, and change any "Pass" that didn't pass.
 
@@ -229,7 +275,7 @@ Fill in the Result column yourselves after running each one, and change any "Pas
 
 ## Evidence for the update
 
-- Screenshot of the unit-test report (75 passed)
+- Screenshot of the unit-test report (90 passed)
 - Screenshot of the instrumented-test report (7 passed)
 - Screenshot of the backend `npm test` output (13 passed)
 - Screenshot of the Android Studio Run window with the green test tree

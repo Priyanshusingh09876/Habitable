@@ -8,6 +8,7 @@ import androidx.room.Update
 import edu.bu.cs501.habitable.data.local.entity.ApartmentEntity
 import edu.bu.cs501.habitable.data.local.entity.IssueEntity
 import edu.bu.cs501.habitable.data.local.entity.OutdoorReadingEntity
+import edu.bu.cs501.habitable.data.local.entity.PhotoEntity
 import edu.bu.cs501.habitable.data.local.entity.ReadingEntity
 import edu.bu.cs501.habitable.data.local.entity.SensorEntity
 import edu.bu.cs501.habitable.data.local.entity.TimelineEventEntity
@@ -156,6 +157,9 @@ interface IssueDao {
     fun observeAll(): Flow<List<IssueEntity>>
 
     @Query("SELECT * FROM issues WHERE status != 'RESOLVED' ORDER BY opened_at DESC")
+    suspend fun getOpen(): List<IssueEntity>
+
+    @Query("SELECT * FROM issues WHERE status != 'RESOLVED' ORDER BY opened_at DESC")
     fun observeOpen(): Flow<List<IssueEntity>>
 
     /** Every issue, for backing up to the server. Issues are few, so no paging. */
@@ -182,6 +186,9 @@ interface IssueDao {
 interface TimelineDao {
     @Insert
     suspend fun insert(event: TimelineEventEntity): Long
+
+    @Query("SELECT * FROM timeline_events WHERE issue_id = :issueId ORDER BY occurred_at ASC")
+    suspend fun getForIssue(issueId: Long): List<TimelineEventEntity>
 
     @Query("SELECT * FROM timeline_events WHERE issue_id = :issueId ORDER BY occurred_at ASC")
     fun observeForIssue(issueId: Long): Flow<List<TimelineEventEntity>>
@@ -212,4 +219,26 @@ interface OutdoorDao {
 
     @Query("DELETE FROM outdoor_readings")
     suspend fun deleteAll()
+}
+
+@Dao
+interface PhotoDao {
+    @Insert
+    suspend fun insert(photo: PhotoEntity): Long
+
+    @Query("SELECT * FROM photos WHERE issue_id = :issueId ORDER BY taken_at ASC")
+    fun observeForIssue(issueId: Long): Flow<List<PhotoEntity>>
+
+    @Query("SELECT * FROM photos WHERE issue_id = :issueId ORDER BY taken_at ASC")
+    suspend fun getForIssue(issueId: Long): List<PhotoEntity>
+
+    /** Photos whose fingerprint the server has not seen yet. */
+    @Query("SELECT * FROM photos WHERE anchored_at IS NULL ORDER BY taken_at ASC")
+    suspend fun getUnanchored(): List<PhotoEntity>
+
+    @Query("UPDATE photos SET anchored_at = :anchoredAt WHERE id = :id")
+    suspend fun markAnchored(id: Long, anchoredAt: Long)
+
+    @Query("SELECT COUNT(*) FROM photos")
+    suspend fun count(): Int
 }

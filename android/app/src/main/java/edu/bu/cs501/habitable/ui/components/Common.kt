@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -238,7 +239,9 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier, trailing: (@Compo
             text.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
+            // TalkBack: announce it as a heading (so users can jump between sections) and read
+            // the normal-case words rather than the capitals drawn on screen.
+            modifier = Modifier.weight(1f).semantics { heading(); contentDescription = text },
         )
         trailing?.invoke()
     }
