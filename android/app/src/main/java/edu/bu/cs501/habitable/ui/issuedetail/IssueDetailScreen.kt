@@ -1,5 +1,9 @@
 package edu.bu.cs501.habitable.ui.issuedetail
 
+import edu.bu.cs501.habitable.domain.text.TextInput
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -200,7 +204,7 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
     if (showCertified) {
         CertifiedDialog(
             caseNumber = caseNumber,
-            onCaseNumberChange = { caseNumber = it.take(40) },
+            onCaseNumberChange = { caseNumber = TextInput.singleLine(it, TextInput.CASE_NUMBER) },
             onSave = {
                 viewModel.advance(caseNumber.trim().takeIf { it.isNotEmpty() }?.let { "Case #$it" })
                 caseNumber = ""
@@ -412,8 +416,8 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                 SurfaceCard {
                     OutlinedTextField(
                         value = note,
-                        onValueChange = { note = it.take(500) },
-                        modifier = Modifier.fillMaxWidth(),
+                        onValueChange = { note = TextInput.multiLine(it, TextInput.NOTE) },
+                        modifier = Modifier.fillMaxWidth().testTag("field_note"),
                         minLines = 2,
                         maxLines = 6,
                         // Notes are short, so the keyboard's Send key saves the note.
@@ -424,7 +428,12 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                     )
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${note.length}/500", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text(
+                            TextInput.counterText(note.length, TextInput.NOTE) ?: "${note.length}/${TextInput.NOTE}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+                        )
                         FilledTonalButton(onClick = saveNote, enabled = note.isNotBlank(), shape = RoundedCornerShape(12.dp)) {
                             Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))

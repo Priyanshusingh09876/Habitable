@@ -1,5 +1,7 @@
 package edu.bu.cs501.habitable.ui.setup
 
+import edu.bu.cs501.habitable.domain.text.TextInput
+import edu.bu.cs501.habitable.ui.components.fieldSupport
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -86,7 +88,10 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                 label = { Text(stringResource(R.string.setup_address)) },
                 leadingIcon = { Icon(Icons.Filled.LocationOn, contentDescription = null) },
                 isError = form.addressError,
-                supportingText = { if (form.addressError) Text(stringResource(R.string.setup_address_required)) },
+                supportingText = fieldSupport(
+                    if (form.addressError) stringResource(R.string.setup_address_required) else null,
+                    form.address.length, TextInput.ADDRESS,
+                ),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                 singleLine = true, shape = fieldShape, modifier = Modifier.fillMaxWidth().testTag("field_address"),
             )
@@ -97,6 +102,7 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                     placeholder = { Text("Apt 3", maxLines = 1) },
                     leadingIcon = { Icon(Icons.Filled.Apartment, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Next),
+                    supportingText = fieldSupport(null, form.unit.length, TextInput.UNIT),
                     singleLine = true, shape = fieldShape, modifier = Modifier.weight(1f).testTag("field_unit"),
                 )
                 OutlinedTextField(
@@ -104,6 +110,7 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                     label = { Text(stringResource(R.string.setup_city), maxLines = 1) },
                     leadingIcon = { Icon(Icons.Filled.LocationCity, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                    supportingText = fieldSupport(null, form.city.length, TextInput.CITY),
                     singleLine = true, shape = fieldShape, modifier = Modifier.weight(1f),
                 )
             }
@@ -116,7 +123,8 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                 label = { Text(stringResource(R.string.setup_landlord_name)) },
                 leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
-                singleLine = true, shape = fieldShape, modifier = Modifier.fillMaxWidth(),
+                supportingText = fieldSupport(null, form.landlordName.length, TextInput.NAME),
+                singleLine = true, shape = fieldShape, modifier = Modifier.fillMaxWidth().testTag("field_landlord_name"),
             )
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
@@ -124,10 +132,10 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                 label = { Text(stringResource(R.string.setup_landlord_email)) },
                 leadingIcon = { Icon(Icons.Filled.Email, contentDescription = null) },
                 isError = form.emailError,
-                supportingText = {
-                    if (form.emailError) Text(stringResource(R.string.setup_email_invalid))
-                    else Text("Used only to pre-fill your notice letters.")
-                },
+                supportingText = fieldSupport(
+                    if (form.emailError) stringResource(R.string.setup_email_invalid) else "Used only to pre-fill your notice letters.",
+                    form.landlordEmail.length, TextInput.EMAIL,
+                ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { submit() }),
                 singleLine = true, shape = fieldShape, modifier = Modifier.fillMaxWidth().testTag("field_landlord_email"),

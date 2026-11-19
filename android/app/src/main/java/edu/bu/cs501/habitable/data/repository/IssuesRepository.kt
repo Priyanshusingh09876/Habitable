@@ -15,6 +15,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
+ * The one thing the "Report issue" form needs from storage. A separate interface so
+ * NewIssueViewModel can be unit-tested with a fake instead of a database.
+ */
+interface IssueWriter {
+    suspend fun create(category: IssueCategory, title: String, description: String): Long
+}
+
+/**
  * Issues and their timelines. The Escalate button is implemented here as
  * [advance]: it moves the issue one state forward and writes the matching
  * timeline event, so the UI never has to know the legal order.
@@ -22,7 +30,7 @@ import kotlinx.coroutines.flow.map
 class IssuesRepository(
     private val db: HabitableDatabase,
     private val clock: () -> Long = System::currentTimeMillis,
-) {
+) : IssueWriter {
     private val issues = db.issueDao()
     private val timeline = db.timelineDao()
     private val violations = db.violationDao()
@@ -41,7 +49,7 @@ class IssuesRepository(
     suspend fun timelineOf(id: Long): List<TimelineEvent> = timeline.getForIssue(id).map { it.toDomain() }
 
     /** Manual "Report issue" flow. Returns the new id. */
-    suspend fun create(category: IssueCategory, title: String, description: String): Long = db.withTransaction {
+    override suspend fun create(category: IssueCategory, title: String, description: String): Long = db.withTransaction {
         val apartmentId = apartments.getFirst()?.id ?: 0L
         val now = clock()
         val id = issues.insert(

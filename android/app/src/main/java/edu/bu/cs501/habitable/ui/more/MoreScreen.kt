@@ -1,5 +1,8 @@
 package edu.bu.cs501.habitable.ui.more
 
+import androidx.compose.ui.text.style.TextOverflow
+import edu.bu.cs501.habitable.domain.text.TextInput
+import edu.bu.cs501.habitable.ui.components.fieldSupport
 import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.stateDescription
@@ -180,6 +183,7 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
                         Text(
                             a?.let { listOf(it.address, it.unit).filter { s -> s.isNotBlank() }.joinToString(" · ") } ?: "Not set up",
                             style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             a?.let { "${it.city} · ${it.landlordName.ifBlank { "no landlord on file" }}" } ?: "Tap to add your apartment",
@@ -315,9 +319,10 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
                 Spacer(Modifier.height(12.dp))
                 if (s?.authToken == null) {
                     OutlinedTextField(
-                        value = email, onValueChange = { email = it.trim() }, label = { Text("Email") }, singleLine = true, shape = fieldShape,
+                        value = email, onValueChange = { email = TextInput.noSpaces(it, TextInput.EMAIL) }, label = { Text("Email") }, singleLine = true, shape = fieldShape,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false, imeAction = ImeAction.Next),
-                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = fieldSupport(null, email.length, TextInput.EMAIL),
+                        modifier = Modifier.fillMaxWidth().testTag("field_signin_email"),
                     )
                     Spacer(Modifier.height(8.dp))
                     val canSignIn = !state.busy && email.contains('@') && password.length >= 8
@@ -328,7 +333,11 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
                         }
                     }
                     OutlinedTextField(
-                        value = password, onValueChange = { password = it }, label = { Text("Password") }, singleLine = true, shape = fieldShape,
+                        // Spaces are allowed in passwords; pasted line breaks are not.
+                        value = password,
+                        onValueChange = { password = TextInput.safeTake(it.filterNot { c -> c == '\n' || c == '\r' }, TextInput.PASSWORD) },
+                        label = { Text("Password") }, singleLine = true, shape = fieldShape,
+                        supportingText = fieldSupport(null, password.length, TextInput.PASSWORD),
                         visualTransformation = PasswordVisualTransformation(),
                         // Password keyboard (no suggestions, nothing remembered); Done signs in.
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false, imeAction = ImeAction.Done),

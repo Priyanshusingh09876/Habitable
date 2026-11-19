@@ -1,5 +1,9 @@
 package edu.bu.cs501.habitable.ui.issues
 
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import edu.bu.cs501.habitable.domain.text.TextInput
+import edu.bu.cs501.habitable.ui.components.fieldSupport
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -106,7 +110,10 @@ fun NewIssueScreen(
                 label = { Text(stringResource(R.string.issue_title_label)) },
                 placeholder = { Text("e.g. No heat in the bedroom") },
                 isError = form.titleError,
-                supportingText = { if (form.titleError) Text(stringResource(R.string.issue_title_required)) },
+                supportingText = fieldSupport(
+                    if (form.titleError) stringResource(R.string.issue_title_required) else null,
+                    form.title.length, TextInput.TITLE,
+                ),
                 // Next jumps to the description; the description is multi-line, so Enter adds a line there.
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                 singleLine = true,
@@ -121,6 +128,7 @@ fun NewIssueScreen(
                 minLines = 4,
                 maxLines = 10, // grows while typing, then scrolls inside, so Save stays reachable
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                supportingText = fieldSupport(null, form.description.length, TextInput.DESCRIPTION),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().testTag("field_description"),
             )
@@ -129,6 +137,15 @@ fun NewIssueScreen(
                 "Heat problems are also opened automatically when the sensor records 2 hours below the legal limit.",
                 tone = ChipTone.Cold,
             )
+
+            form.saveError?.let { message ->
+                Text(
+                    message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
 
             Button(
                 onClick = {
