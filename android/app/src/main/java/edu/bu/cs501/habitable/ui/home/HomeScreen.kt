@@ -1,5 +1,6 @@
 package edu.bu.cs501.habitable.ui.home
 
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -369,7 +370,7 @@ private fun IssueRow(issue: Issue, onClick: () -> Unit) {
             CategoryBadge(issue.category)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(issue.title, style = MaterialTheme.typography.titleMedium)
+                Text(issue.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(6.dp).background(issue.status.tone().palette().accent, CircleShape))

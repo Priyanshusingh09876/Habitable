@@ -1,5 +1,7 @@
 package edu.bu.cs501.habitable.ui.issues
 
+import androidx.compose.ui.text.style.TextOverflow
+import edu.bu.cs501.habitable.domain.text.TextInput
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -98,7 +100,7 @@ fun IssuesScreen(
         }
     ) { padding ->
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding),
+            Modifier.fillMaxSize().padding(padding).testTag("issues_list"),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 104.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -118,7 +120,7 @@ fun IssuesScreen(
             item {
                 OutlinedTextField(
                     value = query,
-                    onValueChange = { query = it.take(60) },
+                    onValueChange = { query = TextInput.singleLine(it, TextInput.SEARCH) },
                     placeholder = { Text("Search issues") },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     trailingIcon = {
@@ -170,7 +172,7 @@ fun IssueCard(issue: Issue, onClick: () -> Unit) {
             CategoryBadge(issue.category)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(issue.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                Text(issue.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${issue.category.label} · opened ${dateOf(issue.openedAtMillis)}",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -1,20 +1,27 @@
-# Test plan and results — Project Update 1
+# Test plan and results
 
-**117 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
-Run on: Windows 11, Android Studio, Pixel XL emulator (API 33 / Android 13), Node 22. Last full run: November 8, 2026.
+**156 automated tests** across the whole test pyramid, plus 23 manual test cases.
+Run on: Windows 11, Android Studio, Node 22; devices in §5. Last full run: November 8, 2026 (117 tests); the 39 added on November 18 are run with `run-all-tests.ps1` before Update 2.
+
+| Level of the pyramid | What we test there | Tests |
+| --- | --- | --- |
+| Unit (many, fast, no Android) | Rules, limits, boundaries, and view models with a **fake repository** injected through an interface | 120 |
+| Integration (on the emulator) | Real Room database; **forced errors** from a fake weather service (offline, server error, empty answer) | 15 |
+| UI / end to end (on the emulator) | Real screens, view models and database: one complete task each, found by test tag or visible text | 8 |
+| Backend | The sync API | 13 |
 
 | Suite | Tests | How to run | Report |
 | --- | --- | --- | --- |
-| Android unit tests (JVM) | 93 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
-| Android instrumented + Compose UI (emulator) | 11 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
+| Android unit tests (JVM) | 120 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
+| Android instrumented + Compose UI (emulator) | 23 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
 | Backend API | 13 | `cd backend` → `npm test` | Terminal output (`# pass 13`) |
-| **Total** | **117** | | |
+| **Total** | **156** | | |
 
 CI (`.github/workflows/ci.yml`) runs the backend tests and the Android build + unit tests on every push to `main`.
 
 ---
 
-## 1. Android unit tests — 93
+## 1. Android unit tests — 120
 
 Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
@@ -191,9 +198,53 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U89 | a non-heat issue has no rule, summary or chart and still builds | A leak or mold issue exports cleanly without sensor sections |
 | U90 | durations read naturally | "45 min", "2 h", "13 h 20 min" |
 
+### TextInputTest — 12 · limits on every text field (boundaries and the Gettysburg Address)
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U94 | length boundaries: one below, at, one above the limit | 79 and 80 characters are kept; the 81st is cut |
+| U95 | empty input stays empty | Nothing breaks on an empty field; no counter is shown |
+| U96 | one-line fields turn pasted line breaks and tabs into one space | A pasted paragraph becomes one line in a title or address |
+| U97 | spaces the user typed are kept | Typing "No " keeps its space |
+| U98 | multi-line fields keep paragraphs, Windows line endings normalised | Descriptions and notes keep their shape |
+| U99 | email fields drop every kind of whitespace | Pasted spaces or line breaks cannot sneak into an address |
+| U100 | cutting never splits an emoji in half | No broken character at the end of cut text |
+| U101 | counter appears at 80 % and says when the limit is reached | 79/100 shows nothing, 80/100 shows "80 / 100", 100 shows "Limit reached: 100 characters" |
+| U102 | Gettysburg in every one-line field is cut to that field's limit, on one line | Address, unit, city, name, title, case number, search |
+| U103 | Gettysburg in the description is kept whole with its paragraphs | 1,450 characters fit in the 2,000 limit |
+| U104 | Gettysburg in a note is cut to 500 and the counter says so | The tenant is told, not silently cut |
+| U105 | Gettysburg in an email field is one word within the limit | The field cannot overflow |
+
+### SetupValidationTest — 4 · what the setup form accepts
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U106 | address needs at least 3 characters, spaces not counted | "", "   ", "ab", " ab " rejected; "1 A" accepted |
+| U107 | the longest address allowed is still valid | 120 characters save |
+| U108 | email boundaries | "a@b.co" accepted; "a@b.c", "landlord@example", "@example.com", "" rejected |
+| U109 | a pasted speech in the email field is rejected, not crashing | Validation copes with nonsense |
+
+### NewIssueViewModelTest — 11 · the Report issue view model with a fake repository
+
+The view model depends on the small `IssueWriter` interface, so the test injects `FakeIssueWriter` (records what would be saved, and can be told to fail). Each test: known data → one action → read the state → assert.
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| U110 | starts with Heat selected and nothing typed | Initial state; Save disabled |
+| U111 | empty title shows an error and saves nothing | Validation before storage |
+| U112 | title boundary: 2 characters rejected, 3 accepted | Exact boundary; typing clears the error |
+| U113 | spaces do not count toward the title | "  a  " cannot be saved |
+| U114 | a valid issue is saved trimmed and reports its id | What reaches storage, and the screen is told where to go |
+| U115 | choosing a category fills an empty title, never overwrites typed text | No lost typing |
+| U116 | storage failure keeps the text and shows an error | **Forced error:** the fake throws; the form says "Could not save the issue" and keeps the title |
+| U117 | retry after a failure clears the error | Recovery works |
+| U118 | Gettysburg pasted into the title is cut to 80 on one line and saves | Stress input end to end through the view model |
+| U119 | Gettysburg pasted into the description is kept whole | Long text is stored as typed |
+| U120 | a description longer than 2,000 characters is cut | Upper limit |
+
 ---
 
-## 2. Android instrumented tests — 11 (on the emulator)
+## 2. Android instrumented tests — 23 (on the emulator)
 
 ### ReadingsPipelineTest — 6 · the end-to-end data path on a real Room database
 
@@ -221,6 +272,30 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | I5 | weather error shows Retry | Error state for the Open-Meteo API, and Retry calls the ViewModel |
 | I6 | loading state shows spinner, not content | Loading state is handled |
 
+### WeatherRepositoryErrorTest — 7 · integration with forced errors
+
+A real (in-memory) Room cache and a fake Open-Meteo that we switch to "offline" or "server error" on purpose.
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| I7 | offline with nothing cached reports an error without cache | Home can say "Outdoor weather unavailable" |
+| I8 | offline after a successful fetch keeps the cached hours | "Showing saved outdoor weather"; the chart keeps its outdoor line |
+| I9 | a server error is reported with its message, not a crash | HTTP 503 becomes a readable error |
+| I10 | an empty answer is an error, not an empty chart | Bad data is not stored |
+| I11 | missing hourly values are skipped | Partial data still works |
+| I12 | city lookup offline returns nothing, so setup still saves | Setup never blocks on the network |
+| I13 | a one-letter city is not sent to the server | No wasted calls |
+
+### ReportIssueFlowTest — 5 · end-to-end UI: real screens, view models and database
+
+| # | Test | What it proves |
+| --- | --- | --- |
+| I14 | report an issue: type title and description, tap Save | **One complete task:** the issue is in the database with the right title, description and category |
+| I15 | Gettysburg pasted into the title | The field holds the first 80 characters and the screen shows "Limit reached: 80 characters" |
+| I16 | Gettysburg pasted into the description is saved whole | 1,450 characters with paragraphs reach the database |
+| I17 | the issue list: search filters, tapping opens the issue | Both issues listed; typing "leak" hides the other; tapping opens the right id |
+| I18 | Gettysburg pasted into search | Search keeps 60 characters and shows "Nothing here yet" instead of crashing |
+
 ---
 
 ## 3. Backend API tests — 13
@@ -243,7 +318,7 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
 ---
 
-## 4. Manual test cases — 21 (emulator, plus a real phone for M13–M14)
+## 4. Manual test cases — 23 (emulator, plus a real phone for M13–M14)
 
 Run in order on a fresh install (App info → Storage → Clear storage). Backend running with `npm run dev`.
 
@@ -271,15 +346,37 @@ Run in order on a fresh install (App info → Storage → Clear storage). Backen
 | M19 | Large text | Settings → Display → Font size largest → open every screen | Nothing is cut off; buttons still readable; screens scroll | Not run yet |
 | M20 | TalkBack | Turn on TalkBack → swipe through Home and an issue | Section titles are announced as headings; buttons say what they do; the chart is described | Not run yet |
 | M21 | Tablet / landscape | Rotate the phone; run on a tablet emulator | Content stays in a centred column at most 720 dp wide; nothing overlaps | Not run yet |
+| M22 | Gettysburg Address everywhere | Copy the speech (search "Gettysburg Address text"), paste it into every field: setup, report issue, search, note, case number, sign-in email and password, thermometer address | No crash; one-line fields stay on one line; the counter says "Limit reached"; Save still works where the input is valid | Not run yet |
+| M23 | Long text in the PDF and letter | Report an issue with the speech as its description → Export PDF and Send notice | The PDF wraps the text across pages without running off the edge; the email opens | Not run yet |
 
 Fill in the Result column yourselves after running each one, and change any "Pass" that didn't pass.
 
 ---
 
+## 5. Devices and settings
+
+Tests are only trusted on the devices they were run on. Record each run here (device, Android version, font size, orientation).
+
+| Device | Android | Why | Automated | Manual cases | Result |
+| --- | --- | --- | --- | --- | --- |
+| Pixel XL emulator | 13 (API 33) | Our main emulator | All | M1–M12 | Pass (Nov 8) |
+| Pixel 7 emulator | 13 (API 33) | Older, common phone | Instrumented | M19, M22 | Not run yet |
+| Pixel 9 emulator | 15 (API 35) | Newest Android | Instrumented | M1–M12 | Not run yet |
+| Pixel Tablet emulator | 14 (API 34) | Large screen, landscape | — | M21 | Not run yet |
+| Any emulator, font size largest | — | Large text | — | M19 | Not run yet |
+| Real Android phone (model: ____ ) | ____ | Real Bluetooth, battery, camera | — | M13–M17, M22 | Not run yet |
+
+## 6. Debugging and bug reports
+
+- Bugs are filed as GitHub issues with the **Bug report** template (`.github/ISSUE_TEMPLATE/bug_report.md`): expected behaviour, smallest steps to reproduce, device and settings, evidence. A fixed bug gets a test so it cannot come back (for example I3b and I3c were written for real bugs).
+- Logcat tags are the class names (`BleSensorSource`, `SensorForegroundService`). **Nothing private is logged:** no password, token, email or reading content. Checked on November 18 by searching every `Log.` call; network logging is debug-only at `BASIC` level (method, URL, status code; no headers or bodies, so the sign-in token is never printed).
+
+---
+
 ## Evidence for the update
 
-- Screenshot of the unit-test report (90 passed)
-- Screenshot of the instrumented-test report (7 passed)
+- Screenshot of the unit-test report (120 passed)
+- Screenshot of the instrumented-test report (23 passed)
 - Screenshot of the backend `npm test` output (13 passed)
 - Screenshot of the Android Studio Run window with the green test tree
 - Screenshots of M7, M8 and M10 on the emulator

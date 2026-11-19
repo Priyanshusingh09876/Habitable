@@ -10,7 +10,7 @@ Tests: [TESTING.md](TESTING.md) · Backlog: [BACKLOG.md](BACKLOG.md) · Real pho
 | --- | --- |
 | Feature-complete beta, core flows and integrations end to end | §1 demo; §2 story status: all MVP stories done |
 | Failure and empty states | §3 |
-| Early automated test results | §4: 117 tests (93 unit, 11 on-device, 13 backend), CI on every push |
+| Early automated test results | §4: 156 tests (120 unit, 23 on-device, 13 backend) across unit, integration and end-to-end UI, CI on every push |
 | Accessibility and adaptive-layout evidence | §5 and ACCESSIBILITY.md |
 | Known defects | §6 |
 | Release plan for the remaining two weeks | §7 |
@@ -52,6 +52,7 @@ Scope decisions since Update 1:
 
 - **Location permission in Bluetooth mode.** The thermometer also broadcasts an iBeacon-format packet, and Android hides beacon-like devices from apps that declare `neverForLocation`. We ask for Location only in Bluetooth mode and never read the phone's position. This replaces the Update 1 plan to avoid the permission.
 - **System camera instead of CameraX.** The phone's camera app writes into our private folder, so the app needs no camera permission and less code. The hash is still taken the moment the file comes back.
+- **Wear OS: no watch app this semester.** A tiny watch screen (room temperature against the limit, a buzz for "No heat") fits the app, but with two weeks left the phone app and real-device testing come first. Android shows phone notifications on a paired watch, so the "No heat detected" alert can reach a watch without a separate app (not tested; we have no watch).
 - **A long gap ends a cold period.** If readings stop for more than 30 minutes (phone off, sensor out of range) the open period ends at the last real reading. Unmeasured time is never counted as below the limit.
 - **Battery: one stored reading every 5 minutes by default** (1, 5 or 10 under More → Bluetooth). The thermometer broadcasts every two seconds; what drains a phone is waking the processor for each broadcast, not the radio. The scan is filtered to the paired thermometer in the Bluetooth chip and runs in low-power mode, and on phones whose chip supports **batched scanning** the chip collects broadcasts by itself and hands them over once per interval, so the processor sleeps in between. Phones without batching fall back to the filtered scan with one stored reading per interval. Ten minutes is still three readings inside the 30-minute gap limit.
 - **Smoother UI.** The keyboard never covers a field (the content shrinks above it, also with edge-to-edge), every field has the right keyboard (email, capitals, Next/Done/Send/Search), tapping empty space closes the keyboard, and form text lives in Compose state so typing never lags. The chart caches its drawing and thins long histories to at most 800 points while keeping every dip (was K6). A release build (`gradlew assembleRelease`, signed with the debug key for demos) runs without debug checks and is what we install on the phone.
@@ -70,12 +71,21 @@ Scope decisions since Update 1:
 | Camera cancelled, or no camera app | Nothing is added; "No camera app was found" if there is none | `PhotosRepository.add()` returns null for an empty file |
 | PDF cannot be written | "Could not create the PDF" with the reason; the issue is untouched | `IssueDetailEvent.Message` |
 | Invalid setup input | Inline errors on address and email | `SetupViewModel` |
+| Very long or pasted text (e.g. the Gettysburg Address in a title) | Each field keeps up to its limit; one-line fields stay on one line; a counter appears near the limit and says "Limit reached"; lists cut long titles with "…" | `TextInput`, `fieldSupport` |
+| Saving an issue fails | "Could not save the issue"; the typed text stays for a retry | `NewIssueViewModel.saveError` |
 | Empty states | "No issues yet", "Nothing recorded yet", "No photos yet", "No events yet", "No thermometer found… scan again" | each screen |
 | Notifications denied | Recording, alerts on screen and reminders in the app still work; only the notifications are missing | `SecurityException` caught |
 
 ## 4. Tests
 
-117 automated tests: **93 unit** (heat rules, violation detector with gaps, quality flags, weather cross-check, chart data and downsampling, letters, Bluetooth decoding with a real H5075 packet, city lookup, SHA-256, reminder rules, PDF content, issue tools), **11 on-device** (the Room pipeline, gaps, a second sensor, photos, the Compose Home screen) and **13 backend**. `run-all-tests.ps1` runs them all; GitHub Actions runs the backend tests, the Android build and the unit tests on every push.
+156 automated tests, covering every level of the test pyramid:
+
+- **120 unit tests** (no Android): heat rules, violation detector with gaps, quality flags, weather cross-check, chart data and downsampling, letters, Bluetooth decoding with a real H5075 packet, city lookup, SHA-256, reminder rules, PDF content, issue tools, **boundary tests for every text limit** (one below, at, one above), and **view-model tests with a fake repository** injected through the `IssueWriter` interface, including a forced storage failure.
+- **15 integration tests** on a real Room database, including **forced errors** from a fake weather service (offline, server error, empty answer).
+- **8 end-to-end UI tests** that drive real screens: report an issue and find it in the database, search and open it, and paste the **Gettysburg Address** into the title, description and search.
+- **13 backend tests.**
+
+`run-all-tests.ps1` runs them all; GitHub Actions runs the backend tests, the Android build and the unit tests on every push. Devices used, the bug report template and the Logcat privacy check are in TESTING.md §5–6.
 
 Manual cases M1–M21 are in TESTING.md. M13–M21 cover what is new (real sensor, sensor failure, photos, PDF, empty states, large text, TalkBack, tablet); their results are recorded there as we run them.
 

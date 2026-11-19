@@ -9,6 +9,7 @@ import edu.bu.cs501.habitable.data.repository.ApartmentRepository
 import edu.bu.cs501.habitable.data.repository.WeatherRepository
 import edu.bu.cs501.habitable.data.settings.SettingsRepository
 import edu.bu.cs501.habitable.domain.model.Apartment
+import edu.bu.cs501.habitable.domain.text.TextInput
 import kotlinx.coroutines.launch
 
 /**
@@ -56,15 +57,16 @@ class SetupViewModel(
         }
     }
 
-    fun setAddress(v: String) = update { it.copy(address = v.take(120), addressError = false) }
-    fun setUnit(v: String) = update { it.copy(unit = v.take(20)) }
-    fun setCity(v: String) = update { it.copy(city = v.take(60)) }
-    fun setLandlordName(v: String) = update { it.copy(landlordName = v.take(80)) }
-    fun setLandlordEmail(v: String) = update { it.copy(landlordEmail = v.trim().take(120), emailError = false) }
+    // Limits and paste clean-up: see TextInput.
+    fun setAddress(v: String) = update { it.copy(address = TextInput.singleLine(v, TextInput.ADDRESS), addressError = false) }
+    fun setUnit(v: String) = update { it.copy(unit = TextInput.singleLine(v, TextInput.UNIT)) }
+    fun setCity(v: String) = update { it.copy(city = TextInput.singleLine(v, TextInput.CITY)) }
+    fun setLandlordName(v: String) = update { it.copy(landlordName = TextInput.singleLine(v, TextInput.NAME)) }
+    fun setLandlordEmail(v: String) = update { it.copy(landlordEmail = TextInput.noSpaces(v, TextInput.EMAIL), emailError = false) }
 
     fun save(onDone: () -> Unit) {
         val f = form
-        val addressOk = f.address.trim().length >= 3
+        val addressOk = isValidAddress(f.address)
         val emailOk = f.landlordEmail.isBlank() || isValidEmail(f.landlordEmail)
         if (!addressOk || !emailOk) {
             update { it.copy(addressError = !addressOk, emailError = !emailOk) }
@@ -98,5 +100,10 @@ class SetupViewModel(
     companion object {
         private val EMAIL = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
         fun isValidEmail(s: String): Boolean = EMAIL.matches(s)
+
+        /** At least 3 characters besides spaces, e.g. "1 A". */
+        fun isValidAddress(s: String): Boolean = s.trim().length >= MIN_ADDRESS
+
+        const val MIN_ADDRESS = 3
     }
 }
