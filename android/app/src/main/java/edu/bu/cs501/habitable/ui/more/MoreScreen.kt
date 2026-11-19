@@ -1,5 +1,16 @@
 package edu.bu.cs501.habitable.ui.more
 
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.heading
+import edu.bu.cs501.habitable.data.settings.SensorInterval
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import edu.bu.cs501.habitable.ui.components.rememberKeyboardDismisser
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -95,8 +106,10 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    // remember, not rememberSaveable: a password should not be written into saved instance state.
+    var password by remember { mutableStateOf("") }
     var bleAddress by rememberSaveable { mutableStateOf("") }
+    val dismissKeyboard = rememberKeyboardDismisser()
     val fieldShape = RoundedCornerShape(14.dp)
 
     // Thermometer picker: ask for the Bluetooth permissions, then scan and show what is nearby.
@@ -218,17 +231,64 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
                             Spacer(Modifier.width(8.dp))
                             Text(if (paired == null) "Find my thermometer" else "Pair a different thermometer")
                         }
+                        val saveAddress = {
+                            if (bleAddress.isNotBlank()) {
+                                dismissKeyboard()
+                                viewModel.setBleAddress(bleAddress)
+                                SensorForegroundService.stop(context)
+                            }
+                        }
                         OutlinedTextField(
-                            value = bleAddress.ifBlank { paired ?: "" },
-                            onValueChange = { bleAddress = it },
+                            value = bleAddress,
+                            // Addresses are hex with colons: upper-case as you type, no autocorrect.
+                            onValueChange = { bleAddress = it.uppercase().filter { c -> c.isLetterOrDigit() || c == ':' }.take(17) },
                             label = { Text("Or type its address (A4:C1:38:…)") },
+                            placeholder = { Text(paired ?: "A4:C1:38:12:34:56") },
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Characters,
+                                autoCorrectEnabled = false,
+                                keyboardType = KeyboardType.Ascii,
+                                imeAction = ImeAction.Done,
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { saveAddress() }),
                             shape = fieldShape,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        TextButton(onClick = { viewModel.setBleAddress(bleAddress); SensorForegroundService.stop(context) }, enabled = bleAddress.isNotBlank()) {
+                        TextButton(onClick = saveAddress, enabled = bleAddress.isNotBlank()) {
                             Text("Save address", fontWeight = FontWeight.Bold)
                         }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Text(
+                            "Save a reading every",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.semantics { heading() },
+                        )
+                        val current = state.settings?.readingInterval ?: SensorInterval.DEFAULT
+                        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SensorInterval.entries.forEach { option ->
+                                FilterChip(
+                                    selected = option == current,
+                                    onClick = {
+                                        if (option != current) {
+                                            viewModel.setReadingInterval(option)
+                                            // The running scan keeps its old interval; stop it so the next Start uses the new one.
+                                            SensorForegroundService.stop(context)
+                                        }
+                                    },
+                                    label = { Text(option.label) },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .semantics { role = Role.RadioButton; stateDescription = option.detail },
+                                )
+                            }
+                        }
+                        Text(
+                            "${current.detail}. Less often means the phone wakes less and the battery lasts longer; " +
+                                "a heat record only needs a few readings an hour. Changing this stops monitoring: tap Start again on Sensors.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -254,13 +314,31 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
                 }
                 Spacer(Modifier.height(12.dp))
                 if (s?.authToken == null) {
-                    OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, singleLine = true, shape = fieldShape, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(
+                        value = email, onValueChange = { email = it.trim() }, label = { Text("Email") }, singleLine = true, shape = fieldShape,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false, imeAction = ImeAction.Next),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, singleLine = true, shape = fieldShape, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                    val canSignIn = !state.busy && email.contains('@') && password.length >= 8
+                    val signIn = {
+                        if (canSignIn) {
+                            dismissKeyboard()
+                            viewModel.signIn(email, password)
+                        }
+                    }
+                    OutlinedTextField(
+                        value = password, onValueChange = { password = it }, label = { Text("Password") }, singleLine = true, shape = fieldShape,
+                        visualTransformation = PasswordVisualTransformation(),
+                        // Password keyboard (no suggestions, nothing remembered); Done signs in.
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { signIn() }),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(12.dp))
                     Button(
-                        onClick = { viewModel.signIn(email, password) },
-                        enabled = !state.busy && email.contains('@') && password.length >= 8,
+                        onClick = signIn,
+                        enabled = canSignIn,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Navy),
                         modifier = Modifier.fillMaxWidth().height(50.dp),

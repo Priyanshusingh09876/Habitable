@@ -1,5 +1,11 @@
 package edu.bu.cs501.habitable.ui.issuedetail
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import edu.bu.cs501.habitable.ui.components.rememberKeyboardDismisser
 import android.content.ClipData
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -125,6 +131,14 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     // rememberSaveable so a half-typed note survives rotation.
     var note by rememberSaveable { mutableStateOf("") }
+    val dismissKeyboard = rememberKeyboardDismisser()
+    val saveNote = {
+        if (note.isNotBlank()) {
+            viewModel.addNote(note)
+            note = ""
+            dismissKeyboard()
+        }
+    }
     var showInspection by rememberSaveable { mutableStateOf(false) }
     var showCertified by rememberSaveable { mutableStateOf(false) }
     var caseNumber by rememberSaveable { mutableStateOf("") }
@@ -401,13 +415,17 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                         onValueChange = { note = it.take(500) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
+                        maxLines = 6,
+                        // Notes are short, so the keyboard's Send key saves the note.
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { saveNote() }),
                         shape = RoundedCornerShape(14.dp),
                         label = { Text("e.g. Landlord replied: looking into it") },
                     )
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("${note.length}/500", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                        FilledTonalButton(onClick = { viewModel.addNote(note); note = "" }, enabled = note.isNotBlank(), shape = RoundedCornerShape(12.dp)) {
+                        FilledTonalButton(onClick = saveNote, enabled = note.isNotBlank(), shape = RoundedCornerShape(12.dp)) {
                             Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Save note")
@@ -573,6 +591,8 @@ private fun CertifiedDialog(
                     onValueChange = onCaseNumberChange,
                     label = { Text("Case number (optional)") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { onSave() }),
                     modifier = Modifier.fillMaxWidth().testTag("field_case_number"),
                 )
             }

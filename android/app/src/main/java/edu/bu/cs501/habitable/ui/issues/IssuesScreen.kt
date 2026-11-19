@@ -1,5 +1,11 @@
 package edu.bu.cs501.habitable.ui.issues
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import edu.bu.cs501.habitable.ui.components.rememberKeyboardDismisser
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -72,6 +78,7 @@ fun IssuesScreen(
     val issues by viewModel.issues.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableStateOf(IssueSearch.Scope.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
+    val dismissKeyboard = rememberKeyboardDismisser()
     val active = issues.count { it.status != IssueStatus.RESOLVED }
     val shown = IssueSearch.apply(issues, query, filter)
 
@@ -120,6 +127,9 @@ fun IssuesScreen(
                         }
                     },
                     singleLine = true,
+                    // The list filters as you type; the Search key just closes the keyboard to show results.
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { dismissKeyboard() }),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth().testTag("issues_search"),
                 )

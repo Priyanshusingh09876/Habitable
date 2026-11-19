@@ -1,5 +1,9 @@
 package edu.bu.cs501.habitable.ui.setup
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import edu.bu.cs501.habitable.ui.components.rememberKeyboardDismisser
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +39,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,7 +50,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.bu.cs501.habitable.R
 import edu.bu.cs501.habitable.ui.components.SectionHeader
 import edu.bu.cs501.habitable.ui.components.SurfaceCard
@@ -56,8 +58,14 @@ import edu.bu.cs501.habitable.ui.theme.HabitableColors
 
 @Composable
 fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
-    val form by viewModel.form.collectAsStateWithLifecycle()
+    val form = viewModel.form
     val fieldShape = RoundedCornerShape(14.dp)
+    val dismissKeyboard = rememberKeyboardDismisser()
+    // Done on the last field saves, like the Continue button.
+    val submit = {
+        dismissKeyboard()
+        viewModel.save(onDone)
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -79,6 +87,7 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                 leadingIcon = { Icon(Icons.Filled.LocationOn, contentDescription = null) },
                 isError = form.addressError,
                 supportingText = { if (form.addressError) Text(stringResource(R.string.setup_address_required)) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                 singleLine = true, shape = fieldShape, modifier = Modifier.fillMaxWidth().testTag("field_address"),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -87,12 +96,14 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                     label = { Text(stringResource(R.string.setup_unit), maxLines = 1) },
                     placeholder = { Text("Apt 3", maxLines = 1) },
                     leadingIcon = { Icon(Icons.Filled.Apartment, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Next),
                     singleLine = true, shape = fieldShape, modifier = Modifier.weight(1f).testTag("field_unit"),
                 )
                 OutlinedTextField(
                     value = form.city, onValueChange = viewModel::setCity,
                     label = { Text(stringResource(R.string.setup_city), maxLines = 1) },
                     leadingIcon = { Icon(Icons.Filled.LocationCity, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     singleLine = true, shape = fieldShape, modifier = Modifier.weight(1f),
                 )
             }
@@ -104,6 +115,7 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                 value = form.landlordName, onValueChange = viewModel::setLandlordName,
                 label = { Text(stringResource(R.string.setup_landlord_name)) },
                 leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                 singleLine = true, shape = fieldShape, modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(8.dp))
@@ -116,13 +128,14 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
                     if (form.emailError) Text(stringResource(R.string.setup_email_invalid))
                     else Text("Used only to pre-fill your notice letters.")
                 },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { submit() }),
                 singleLine = true, shape = fieldShape, modifier = Modifier.fillMaxWidth().testTag("field_landlord_email"),
             )
         }
 
         Button(
-            onClick = { viewModel.save(onDone) },
+            onClick = submit,
             enabled = !form.saving,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Heat, contentColor = Color.White),

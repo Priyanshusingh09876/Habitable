@@ -1,5 +1,11 @@
 package edu.bu.cs501.habitable.ui.issues
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import edu.bu.cs501.habitable.ui.components.rememberKeyboardDismisser
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,7 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,7 +52,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.bu.cs501.habitable.R
 import edu.bu.cs501.habitable.domain.model.IssueCategory
 import edu.bu.cs501.habitable.ui.components.ChipTone
@@ -63,7 +67,8 @@ fun NewIssueScreen(
     onSaved: (Long) -> Unit,
     onBack: () -> Unit,
 ) {
-    val form by viewModel.form.collectAsStateWithLifecycle()
+    val form = viewModel.form
+    val dismissKeyboard = rememberKeyboardDismisser()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         // The NavHost Scaffold already pads for the system bars; don't pad twice.
@@ -102,6 +107,8 @@ fun NewIssueScreen(
                 placeholder = { Text("e.g. No heat in the bedroom") },
                 isError = form.titleError,
                 supportingText = { if (form.titleError) Text(stringResource(R.string.issue_title_required)) },
+                // Next jumps to the description; the description is multi-line, so Enter adds a line there.
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().testTag("field_title"),
@@ -112,6 +119,8 @@ fun NewIssueScreen(
                 label = { Text(stringResource(R.string.issue_description_label)) },
                 placeholder = { Text("When did it start? Which rooms? Have you told the landlord?") },
                 minLines = 4,
+                maxLines = 10, // grows while typing, then scrolls inside, so Save stays reachable
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().testTag("field_description"),
             )
@@ -122,7 +131,10 @@ fun NewIssueScreen(
             )
 
             Button(
-                onClick = { viewModel.save(onSaved) },
+                onClick = {
+                    dismissKeyboard()
+                    viewModel.save(onSaved)
+                },
                 enabled = form.canSave,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Heat, contentColor = Color.White),

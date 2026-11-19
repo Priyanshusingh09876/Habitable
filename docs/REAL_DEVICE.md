@@ -42,6 +42,15 @@ stores the phone's position. Simulated mode asks for neither permission.
 | Thermometer out of range or phone off | No readings are stored. The next reading is flagged `GAP_BEFORE`, and an open cold period ends at the last real reading, so unmeasured time is never counted |
 | Android restarts the service | It resumes with the paired thermometer (START_STICKY) |
 
+### Battery
+
+The thermometer broadcasts every two seconds. Habitable does not wake up for each one:
+
+- The scan only listens for the paired thermometer (filtered inside the Bluetooth chip) and runs in Android's low-power scan mode.
+- On most phones from the last several years the Bluetooth chip supports **batched scanning**: it collects the broadcasts itself and hands them to the app once per interval, so the phone's processor stays asleep in between. Logcat (`BleSensorSource`) shows `batching=true` when this is in use.
+- **More → Bluetooth → Save a reading every 1 / 5 / 10 min** (default 5). Less often means less battery. Changing it stops monitoring; tap Start again on Sensors.
+- For the most realistic battery, install the release build: `cd android` → `.\gradlew assembleRelease`, then install `app/build/outputs/apk/release/app-release.apk`.
+
 ## 3. Give the phone a backend it can reach
 
 `10.0.2.2` only exists inside the emulator. A real phone needs one of these.
@@ -76,6 +85,6 @@ pause can time out. Tap **Sync now** again.
 ## 4. Overnight test (before the final demo)
 
 1. Pair the thermometer, start monitoring, lock the phone and leave it charging.
-2. In the morning check: readings every minute on the 24 h chart, no `GAP_BEFORE` flags
+2. In the morning check: a reading every 5 minutes (or the interval chosen under More → Bluetooth) on the 24 h chart, no `GAP_BEFORE` flags
    in Sensors → Data checks, and the same temperature as the thermometer's screen.
 3. Note the phone model, Android version and any gaps in `docs/UPDATE2.md` under known issues.

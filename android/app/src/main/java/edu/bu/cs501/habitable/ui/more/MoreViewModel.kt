@@ -11,6 +11,7 @@ import edu.bu.cs501.habitable.data.sensor.BleSensorSource
 import edu.bu.cs501.habitable.data.sensor.BleSupport
 import edu.bu.cs501.habitable.data.sensor.FoundSensor
 import edu.bu.cs501.habitable.data.settings.Settings
+import edu.bu.cs501.habitable.data.settings.SensorInterval
 import edu.bu.cs501.habitable.data.settings.SettingsRepository
 import edu.bu.cs501.habitable.domain.model.Apartment
 import kotlinx.coroutines.Job
@@ -46,6 +47,7 @@ class MoreViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MoreUiState())
 
     fun setSimulated(simulated: Boolean) = viewModelScope.launch { settings.setSimulatedSensor(simulated) }
+    fun setReadingInterval(interval: SensorInterval) = viewModelScope.launch { settings.setReadingInterval(interval) }
     fun clearMessage() { message.value = null }
     fun showMessage(text: String) { message.value = text }
 

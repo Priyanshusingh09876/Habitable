@@ -1,15 +1,14 @@
 package edu.bu.cs501.habitable.ui.setup
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.bu.cs501.habitable.data.repository.ApartmentRepository
 import edu.bu.cs501.habitable.data.repository.WeatherRepository
 import edu.bu.cs501.habitable.data.settings.SettingsRepository
 import edu.bu.cs501.habitable.domain.model.Apartment
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -34,34 +33,44 @@ class SetupViewModel(
         val loadedExisting: Boolean = false,
     )
 
-    private val _form = MutableStateFlow(Form())
-    val form: StateFlow<Form> = _form.asStateFlow()
+    /**
+     * Held in Compose state, not a StateFlow: text fields must see each keystroke in the same
+     * frame, or fast typing can drop characters and jump the cursor. Still survives rotation
+     * because it lives in the ViewModel.
+     */
+    var form by mutableStateOf(Form())
+        private set
+
+    private inline fun update(change: (Form) -> Form) {
+        form = change(form)
+    }
 
     init {
         viewModelScope.launch {
             apartments.getApartment()?.let { a ->
-                _form.update {
+                if (form != Form()) return@let // the user started typing before it loaded; keep their text
+                update {
                     it.copy(address = a.address, unit = a.unit, city = a.city, landlordName = a.landlordName, landlordEmail = a.landlordEmail, loadedExisting = true)
                 }
             }
         }
     }
 
-    fun setAddress(v: String) = _form.update { it.copy(address = v.take(120), addressError = false) }
-    fun setUnit(v: String) = _form.update { it.copy(unit = v.take(20)) }
-    fun setCity(v: String) = _form.update { it.copy(city = v.take(60)) }
-    fun setLandlordName(v: String) = _form.update { it.copy(landlordName = v.take(80)) }
-    fun setLandlordEmail(v: String) = _form.update { it.copy(landlordEmail = v.trim().take(120), emailError = false) }
+    fun setAddress(v: String) = update { it.copy(address = v.take(120), addressError = false) }
+    fun setUnit(v: String) = update { it.copy(unit = v.take(20)) }
+    fun setCity(v: String) = update { it.copy(city = v.take(60)) }
+    fun setLandlordName(v: String) = update { it.copy(landlordName = v.take(80)) }
+    fun setLandlordEmail(v: String) = update { it.copy(landlordEmail = v.trim().take(120), emailError = false) }
 
     fun save(onDone: () -> Unit) {
-        val f = _form.value
+        val f = form
         val addressOk = f.address.trim().length >= 3
         val emailOk = f.landlordEmail.isBlank() || isValidEmail(f.landlordEmail)
         if (!addressOk || !emailOk) {
-            _form.update { it.copy(addressError = !addressOk, emailError = !emailOk) }
+            update { it.copy(addressError = !addressOk, emailError = !emailOk) }
             return
         }
-        _form.update { it.copy(saving = true) }
+        update { it.copy(saving = true) }
         viewModelScope.launch {
             val city = f.city.trim().ifBlank { "Boston" }
             // Look the city up so the outdoor weather is for the right place. If that fails
@@ -81,7 +90,7 @@ class SetupViewModel(
                 )
             )
             settings.setOnboarded(true)
-            _form.update { it.copy(saving = false) }
+            update { it.copy(saving = false) }
             onDone()
         }
     }

@@ -1,16 +1,16 @@
 package edu.bu.cs501.habitable.ui.issues
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.bu.cs501.habitable.data.repository.IssuesRepository
 import edu.bu.cs501.habitable.domain.model.Issue
 import edu.bu.cs501.habitable.domain.model.IssueCategory
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class IssuesViewModel(issues: IssuesRepository) : ViewModel() {
@@ -34,23 +34,32 @@ class NewIssueViewModel(private val issues: IssuesRepository) : ViewModel() {
         val canSave: Boolean get() = title.trim().length >= 3 && !saving
     }
 
-    private val _form = MutableStateFlow(Form())
-    val form: StateFlow<Form> = _form.asStateFlow()
+    /**
+     * Held in Compose state, not a StateFlow: text fields must see each keystroke in the same
+     * frame, or fast typing can drop characters and jump the cursor. Still survives rotation
+     * because it lives in the ViewModel.
+     */
+    var form by mutableStateOf(Form())
+        private set
 
-    fun setCategory(c: IssueCategory) = _form.update { it.copy(category = c, title = if (it.title.isBlank()) defaultTitle(c) else it.title) }
-    fun setTitle(t: String) = _form.update { it.copy(title = t.take(80), titleError = false) }
-    fun setDescription(d: String) = _form.update { it.copy(description = d.take(2000)) }
+    private inline fun update(change: (Form) -> Form) {
+        form = change(form)
+    }
+
+    fun setCategory(c: IssueCategory) = update { it.copy(category = c, title = if (it.title.isBlank()) defaultTitle(c) else it.title) }
+    fun setTitle(t: String) = update { it.copy(title = t.take(80), titleError = false) }
+    fun setDescription(d: String) = update { it.copy(description = d.take(2000)) }
 
     fun save(onSaved: (Long) -> Unit) {
-        val f = _form.value
+        val f = form
         if (f.title.trim().length < 3) {
-            _form.update { it.copy(titleError = true) }
+            update { it.copy(titleError = true) }
             return
         }
-        _form.update { it.copy(saving = true) }
+        update { it.copy(saving = true) }
         viewModelScope.launch {
             val id = issues.create(f.category, f.title, f.description)
-            _form.update { it.copy(saving = false) }
+            update { it.copy(saving = false) }
             onSaved(id)
         }
     }
