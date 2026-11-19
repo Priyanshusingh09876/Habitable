@@ -43,6 +43,10 @@ android {
 
     buildTypes {
         release {
+            // A release build runs Compose without debug checks, so scrolling, the chart and the
+            // keyboard are noticeably smoother. Signed with the local debug key so it installs
+            // for demos (`gradlew assembleRelease`); a store release would use its own key.
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

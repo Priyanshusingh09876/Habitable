@@ -73,7 +73,12 @@ class SensorForegroundService : LifecycleService() {
             promoteForBluetooth()
         }
         val source: SensorSource = if (bluetooth) {
-            BleSensorSource(this, settings.bleAddress.orEmpty(), model = settings.bleName ?: BleSensorSource.MODEL)
+            BleSensorSource(
+                this,
+                settings.bleAddress.orEmpty(),
+                model = settings.bleName ?: BleSensorSource.MODEL,
+                intervalMillis = settings.readingInterval.millis,
+            )
         } else {
             SimulatedSensorSource(SimulatedSensorSource.Mode.Live(), intervalMillis = LIVE_INTERVAL_MILLIS)
         }

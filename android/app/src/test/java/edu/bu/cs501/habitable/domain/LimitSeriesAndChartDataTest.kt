@@ -6,6 +6,7 @@ import edu.bu.cs501.habitable.domain.model.Reading
 import edu.bu.cs501.habitable.domain.rules.HeatRules
 import edu.bu.cs501.habitable.domain.rules.LimitSeries
 import edu.bu.cs501.habitable.domain.usecase.BuildChartData
+import edu.bu.cs501.habitable.domain.usecase.ChartData
 import org.junit.Test
 import java.time.ZonedDateTime
 
@@ -72,5 +73,43 @@ class LimitSeriesAndChartDataTest {
         assertThat(data.isEmpty).isTrue()
         assertThat(data.limit).isNotEmpty()
         assertThat(data.violationSpans).isEmpty()
+    }
+
+    // --- Thinning a month of readings for drawing ---
+
+    private fun pts(values: List<Double>) = values.mapIndexed { i, v -> ChartData.Pt(i * 60_000L, v) }
+
+    @Test fun `short series are drawn exactly as recorded`() {
+        val few = pts(listOf(70.0, 69.0, 68.5))
+        assertThat(BuildChartData.downsample(few, 800)).isEqualTo(few)
+    }
+
+    @Test fun `a month of readings is thinned but keeps the coldest dip, the ends and time order`() {
+        // 30 days at one reading a minute, steady 70 °F with one 3-minute dip to 55 °F in the middle.
+        val values = MutableList(43_200) { 70.0 }
+        values[20_000] = 58.0; values[20_001] = 55.0; values[20_002] = 57.0
+        val all = pts(values)
+
+        val thin = BuildChartData.downsample(all, 800)
+
+        assertThat(thin.size).isAtMost(800)
+        assertThat(thin.first()).isEqualTo(all.first())
+        assertThat(thin.last()).isEqualTo(all.last())
+        assertThat(thin.minOf { it.valueF }).isEqualTo(55.0)                 // the dip survives
+        assertThat(thin.map { it.timeMillis }).isInOrder()
+    }
+
+    @Test fun `cold spans and the axis use every reading, not the thinned line`() {
+        // One reading a minute for 30 hours from 6 PM; a single 60 °F reading at 2 AM (limit 64 °F).
+        val start = t(11, 9, 18)
+        val readings = (0 until 30 * 60).map { m ->
+            val at = start + m * 60_000L
+            Reading(sensorId = 1, tempF = if (at == t(11, 10, 2)) 60.0 else 70.0, humidityPct = null, recordedAtMillis = at)
+        }
+        val data = BuildChartData(readings, emptyList(), start, start + 30 * 3_600_000L, maxPoints = 100)
+        assertThat(data.indoor.size).isAtMost(100)
+        assertThat(data.violationSpans).hasSize(1)
+        assertThat(data.violationSpans.single().first).isEqualTo(t(11, 10, 2))
+        assertThat(data.minF).isEqualTo(50.0)                                  // 60 - 2, rounded down to the 10 °F grid
     }
 }

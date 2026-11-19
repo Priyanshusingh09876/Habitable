@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -31,6 +32,7 @@ class SettingsRepository(private val context: Context) {
         val BLE_ADDRESS = stringPreferencesKey("ble_address")
         val BLE_NAME = stringPreferencesKey("ble_name")
         val SENSOR_ERROR = stringPreferencesKey("sensor_error")
+        val READING_INTERVAL_MIN = intPreferencesKey("reading_interval_min")
         val AUTH_TOKEN = stringPreferencesKey("auth_token")
         val USER_EMAIL = stringPreferencesKey("user_email")
         val LAST_SYNC = longPreferencesKey("last_sync_millis")
@@ -44,6 +46,7 @@ class SettingsRepository(private val context: Context) {
             bleAddress = p[Keys.BLE_ADDRESS],
             bleName = p[Keys.BLE_NAME],
             sensorError = p[Keys.SENSOR_ERROR],
+            readingInterval = SensorInterval.fromMinutes(p[Keys.READING_INTERVAL_MIN]),
             authToken = p[Keys.AUTH_TOKEN],
             userEmail = p[Keys.USER_EMAIL],
             lastSyncMillis = p[Keys.LAST_SYNC],
@@ -63,6 +66,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSensorError(message: String?) = context.dataStore.edit {
         if (message == null) it.remove(Keys.SENSOR_ERROR) else it[Keys.SENSOR_ERROR] = message
     }
+    suspend fun setReadingInterval(interval: SensorInterval) = context.dataStore.edit { it[Keys.READING_INTERVAL_MIN] = interval.minutes }
+
     suspend fun setAuth(token: String?, email: String?) = context.dataStore.edit {
         if (token == null) it.remove(Keys.AUTH_TOKEN) else it[Keys.AUTH_TOKEN] = token
         if (email == null) it.remove(Keys.USER_EMAIL) else it[Keys.USER_EMAIL] = email
@@ -77,6 +82,7 @@ data class Settings(
     val bleAddress: String?,
     val bleName: String? = null,
     val sensorError: String? = null,
+    val readingInterval: SensorInterval = SensorInterval.DEFAULT,
     val authToken: String?,
     val userEmail: String?,
     val lastSyncMillis: Long?,
@@ -94,3 +100,22 @@ val Settings.activeSensorAddress: String
 /** True when a real thermometer is selected and will be used by the service. */
 val Settings.usesBluetooth: Boolean
     get() = !simulatedSensor && !bleAddress.isNullOrBlank()
+
+/**
+ * How often the real thermometer's reading is stored. The thermometer broadcasts
+ * every ~2 s; storing (and waking the phone) less often saves battery. Even the
+ * slowest choice is far finer than a heat complaint needs, and stays inside the
+ * 30-minute gap that DataQualityChecker treats as missing data.
+ */
+enum class SensorInterval(val minutes: Int, val label: String, val detail: String) {
+    FREQUENT(1, "1 min", "Most detail, most battery"),
+    BALANCED(5, "5 min", "Recommended"),
+    SAVER(10, "10 min", "Least battery");
+
+    val millis: Long get() = minutes * 60_000L
+
+    companion object {
+        val DEFAULT = BALANCED
+        fun fromMinutes(minutes: Int?): SensorInterval = entries.firstOrNull { it.minutes == minutes } ?: DEFAULT
+    }
+}

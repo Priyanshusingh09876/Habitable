@@ -1,5 +1,9 @@
 package edu.bu.cs501.habitable.ui.navigation
 
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.platform.LocalFocusManager
+import edu.bu.cs501.habitable.ui.components.clearFocusOnTap
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.widthIn
@@ -122,6 +126,7 @@ fun HabitableNavHost(
     val destination = backStack?.destination
     val showBar = tabs.any { tab -> destination?.hierarchy?.any(tab.matches) == true }
 
+    val focusManager = LocalFocusManager.current
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -160,8 +165,15 @@ fun HabitableNavHost(
             startDestination = if (startAtSetup) Route.Setup else Route.Home,
             // Phones: full width. Tablets, foldables and landscape: content stays a readable
             // column (at most 720 dp) centred on the screen instead of stretching edge to edge.
+            // padding + consumeWindowInsets + imePadding: when the keyboard opens, the screen
+            // shrinks to end exactly at the keyboard's top edge (minus the bottom bar it already
+            // covers), so no field or button is ever hidden behind it.
+            // Tapping empty space closes the keyboard.
             modifier = Modifier
                 .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .clearFocusOnTap(focusManager)
                 .fillMaxSize()
                 .wrapContentWidth(Alignment.CenterHorizontally)
                 .widthIn(max = 720.dp),

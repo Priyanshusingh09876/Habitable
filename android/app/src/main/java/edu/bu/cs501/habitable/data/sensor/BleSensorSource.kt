@@ -6,6 +6,7 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
@@ -21,23 +22,36 @@ import java.nio.ByteOrder
  * broadcasts temperature, humidity and battery in its Bluetooth advertisement
  * every couple of seconds, and we listen.
  *
- * - One sample is emitted at most every [minIntervalMillis] (default 1 minute),
- *   so a night of logging is about a thousand rows, not tens of thousands.
- * - The scan is filtered to the paired address and uses low-power mode.
- * - Android quietly downgrades a scan that runs longer than 30 minutes, so the
- *   scan is restarted every [RESTART_MILLIS].
- * - If the phone is not ready (permission, Bluetooth off, Location off) the flow
- *   ends with a readable message instead of crashing; see [BleSupport.problem].
+ * Battery: the expensive part of Bluetooth scanning is not the radio but waking
+ * the phone's processor for every broadcast (about every 2 s, all night). So:
+ *  - The scan is filtered to the paired address in the Bluetooth chip, and runs
+ *    in low-power mode.
+ *  - **Batched scanning.** On phones whose Bluetooth chip supports it (most from
+ *    the last several years) the chip collects matching broadcasts on its own and
+ *    hands them over once per [intervalMillis]. The processor can stay asleep in
+ *    between, and we keep only the newest reading of each batch.
+ *  - Without batching, results arrive one by one and are throttled to one stored
+ *    reading per [intervalMillis].
+ *  - The interval is the user's choice (1, 5 or 10 minutes; see SensorInterval).
+ *
+ * Android quietly downgrades a scan that runs longer than 30 minutes, so the scan
+ * is restarted every [RESTART_MILLIS], flushing any pending batch first.
+ * If the phone is not ready (permission, Bluetooth off, Location off) the flow
+ * ends with a readable message instead of crashing; see [BleSupport.problem].
  */
 class BleSensorSource(
     private val context: Context,
     address: String,
     override val model: String = MODEL,
-    private val minIntervalMillis: Long = DEFAULT_INTERVAL_MILLIS,
+    private val intervalMillis: Long = DEFAULT_INTERVAL_MILLIS,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : SensorSource {
 
     override val address: String = address.trim().uppercase()
+
+    /** True when this phone's Bluetooth chip can batch results itself (checked once per start). */
+    var usesBatching: Boolean = false
+        private set
 
     @SuppressLint("MissingPermission") // checked by BleSupport.problem() before every start
     override fun samples(): Flow<SensorSample> = callbackFlow {
@@ -45,7 +59,8 @@ class BleSensorSource(
             close(IllegalStateException(reason))
             return@callbackFlow
         }
-        val scanner = BleSupport.scanner(context)
+        val adapter = BleSupport.adapter(context)
+        val scanner = adapter?.bluetoothLeScanner
         if (scanner == null) {
             close(IllegalStateException("Turn on Bluetooth to read the thermometer."))
             return@callbackFlow
@@ -56,17 +71,37 @@ class BleSensorSource(
             close(IllegalArgumentException("Not a valid Bluetooth address: ${this@BleSensorSource.address}"))
             return@callbackFlow
         }
-        val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build()
+        usesBatching = adapter.isOffloadedScanBatchingSupported
+        val settings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+            .apply { if (usesBatching) setReportDelay(intervalMillis) }
+            .build()
 
         var lastEmitAt = 0L
+        /** Stores [result] if it is a Govee reading and at least most of an interval after the last one. */
+        fun offer(result: ScanResult, recordedAt: Long): Boolean {
+            val payload = result.scanRecord?.getManufacturerSpecificData(GOVEE_COMPANY_ID) ?: return false
+            val decoded = decodeGovee(payload) ?: return false
+            // 80 %: a batch that arrives a few seconds early must not be dropped.
+            if (recordedAt - lastEmitAt < intervalMillis * 8 / 10) return false
+            lastEmitAt = recordedAt
+            trySend(SensorSample(tempF = decoded.first, humidityPct = decoded.second, recordedAtMillis = recordedAt, simulated = false))
+            return true
+        }
+
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                val payload = result.scanRecord?.getManufacturerSpecificData(GOVEE_COMPANY_ID) ?: return
-                val decoded = decodeGovee(payload) ?: return
+                offer(result, clock())
+            }
+
+            override fun onBatchScanResults(results: MutableList<ScanResult>) {
+                // Newest first: keep one reading per batch, stamped with when it was actually heard.
                 val now = clock()
-                if (now - lastEmitAt < minIntervalMillis) return // throttle: the sensor talks every ~2 s
-                lastEmitAt = now
-                trySend(SensorSample(tempF = decoded.first, humidityPct = decoded.second, recordedAtMillis = now, simulated = false))
+                val nowNanos = SystemClock.elapsedRealtimeNanos()
+                for (r in results.sortedByDescending { it.timestampNanos }) {
+                    val heardAt = now - (nowNanos - r.timestampNanos).coerceAtLeast(0L) / 1_000_000L
+                    if (offer(r, heardAt)) break
+                }
             }
 
             override fun onScanFailed(errorCode: Int) {
@@ -87,6 +122,7 @@ class BleSensorSource(
 
         fun stop() {
             try {
+                if (usesBatching) scanner.flushPendingScanResults(callback) // deliver what the chip is holding
                 scanner.stopScan(callback)
             } catch (_: SecurityException) {
                 // Permission revoked while scanning; nothing more to do.
@@ -96,7 +132,7 @@ class BleSensorSource(
         }
 
         if (!start()) return@callbackFlow
-        Log.d(TAG, "BLE scan started for ${this@BleSensorSource.address}")
+        Log.d(TAG, "BLE scan started for ${this@BleSensorSource.address}, every ${intervalMillis / 1000} s, batching=$usesBatching")
 
         val restarter = launch {
             while (isActive) {
@@ -121,8 +157,8 @@ class BleSensorSource(
         /** Govee's Bluetooth SIG company identifier. */
         const val GOVEE_COMPANY_ID = 0xEC88
 
-        /** One stored reading a minute: fine enough for a heat record, light on storage and battery. */
-        const val DEFAULT_INTERVAL_MILLIS = 60_000L
+        /** Five minutes: the "Balanced" choice. See SensorInterval for the others. */
+        const val DEFAULT_INTERVAL_MILLIS = 5 * 60_000L
 
         /** Restart well inside Android's 30-minute limit for long-running scans. */
         const val RESTART_MILLIS = 20 * 60_000L

@@ -10,7 +10,7 @@ Tests: [TESTING.md](TESTING.md) · Backlog: [BACKLOG.md](BACKLOG.md) · Real pho
 | --- | --- |
 | Feature-complete beta, core flows and integrations end to end | §1 demo; §2 story status: all MVP stories done |
 | Failure and empty states | §3 |
-| Early automated test results | §4: 114 tests (90 unit, 11 on-device, 13 backend), CI on every push |
+| Early automated test results | §4: 117 tests (93 unit, 11 on-device, 13 backend), CI on every push |
 | Accessibility and adaptive-layout evidence | §5 and ACCESSIBILITY.md |
 | Known defects | §6 |
 | Release plan for the remaining two weeks | §7 |
@@ -22,7 +22,7 @@ New since Update 1 is in **bold**.
 
 | Step | What the audience sees | Underneath |
 | --- | --- | --- |
-| 1. **Real thermometer** (phone) | More → Bluetooth → **Find my thermometer** lists the Govee H5075 with the temperature on its screen; tap it; Sensors → Start; Home shows the room's real temperature | `BleDeviceScanner` scans for Govee advertisements; `BleSensorSource` decodes them and emits one sample a minute; the foreground service ingests each one |
+| 1. **Real thermometer** (phone) | More → Bluetooth → **Find my thermometer** lists the Govee H5075 with the temperature on its screen; tap it; Sensors → Start; Home shows the room's real temperature | `BleDeviceScanner` scans for Govee advertisements; `BleSensorSource` decodes them and stores one reading every 5 minutes (user can pick 1, 5 or 10) using a battery-saving batched scan; the foreground service ingests each one |
 | 2. Cold night (emulator) | Replay cold night: chart, shading, **a "No heat detected" notification**, the automatic issue | Same `ingest()` path; `ViolationAlert` is shared by the service and Replay |
 | 3. **Photo** | On the issue: Add photo → the camera → a thumbnail with the time and the start of its fingerprint; the timeline gains "Photo added" | System camera through `TakePicture` + `FileProvider` (no camera permission); `PhotosRepository.add()` hashes the file with SHA-256 and writes the row and the timeline event in one transaction |
 | 4. Notice → inspection → certified | Email letter, Boston 311 choices, case number | As in Update 1, plus the inspection and certified dialogs |
@@ -38,7 +38,7 @@ Backup: the recorded demo and screenshots, as for Update 1.
 | Story | Status | Owner |
 | --- | --- | --- |
 | US-1 Account + apartment | Done; the city is now looked up for weather | Both |
-| US-2 Bluetooth thermometer | Done: picker, permissions, one reading a minute. Overnight run on the real device is this week's test | Priyanshu |
+| US-2 Bluetooth thermometer | Done: picker, permissions, battery-saving batched scan, reading interval setting. Overnight run on the real device is this week's test | Priyanshu |
 | US-3 Chart vs. legal limit | Done | Priyanshu |
 | US-4 Photos hashed at capture | Done | Ankita |
 | US-5 Issues + automatic heat issue | Done | Ankita |
@@ -53,7 +53,8 @@ Scope decisions since Update 1:
 - **Location permission in Bluetooth mode.** The thermometer also broadcasts an iBeacon-format packet, and Android hides beacon-like devices from apps that declare `neverForLocation`. We ask for Location only in Bluetooth mode and never read the phone's position. This replaces the Update 1 plan to avoid the permission.
 - **System camera instead of CameraX.** The phone's camera app writes into our private folder, so the app needs no camera permission and less code. The hash is still taken the moment the file comes back.
 - **A long gap ends a cold period.** If readings stop for more than 30 minutes (phone off, sensor out of range) the open period ends at the last real reading. Unmeasured time is never counted as below the limit.
-- **One reading a minute** from the real thermometer (it broadcasts every two seconds).
+- **Battery: one stored reading every 5 minutes by default** (1, 5 or 10 under More → Bluetooth). The thermometer broadcasts every two seconds; what drains a phone is waking the processor for each broadcast, not the radio. The scan is filtered to the paired thermometer in the Bluetooth chip and runs in low-power mode, and on phones whose chip supports **batched scanning** the chip collects broadcasts by itself and hands them over once per interval, so the processor sleeps in between. Phones without batching fall back to the filtered scan with one stored reading per interval. Ten minutes is still three readings inside the 30-minute gap limit.
+- **Smoother UI.** The keyboard never covers a field (the content shrinks above it, also with edge-to-edge), every field has the right keyboard (email, capitals, Next/Done/Send/Search), tapping empty space closes the keyboard, and form text lives in Compose state so typing never lags. The chart caches its drawing and thins long histories to at most 800 points while keeping every dip (was K6). A release build (`gradlew assembleRelease`, signed with the debug key for demos) runs without debug checks and is what we install on the phone.
 
 ## 3. Failure and empty states
 
@@ -74,7 +75,7 @@ Scope decisions since Update 1:
 
 ## 4. Tests
 
-114 automated tests: **90 unit** (heat rules, violation detector with gaps, quality flags, weather cross-check, chart data, letters, Bluetooth decoding with a real H5075 packet, city lookup, SHA-256, reminder rules, PDF content, issue tools), **11 on-device** (the Room pipeline, gaps, a second sensor, photos, the Compose Home screen) and **13 backend**. `run-all-tests.ps1` runs them all; GitHub Actions runs the backend tests, the Android build and the unit tests on every push.
+117 automated tests: **93 unit** (heat rules, violation detector with gaps, quality flags, weather cross-check, chart data and downsampling, letters, Bluetooth decoding with a real H5075 packet, city lookup, SHA-256, reminder rules, PDF content, issue tools), **11 on-device** (the Room pipeline, gaps, a second sensor, photos, the Compose Home screen) and **13 backend**. `run-all-tests.ps1` runs them all; GitHub Actions runs the backend tests, the Android build and the unit tests on every push.
 
 Manual cases M1–M21 are in TESTING.md. M13–M21 cover what is new (real sensor, sensor failure, photos, PDF, empty states, large text, TalkBack, tablet); their results are recorded there as we run them.
 
@@ -91,7 +92,7 @@ Built in: descriptions on icon buttons, section titles announced as headings, a 
 | K3 | Sync on a real phone needs a reachable backend | `10.0.2.2` only works in the emulator | Deploy to Render; until then the laptop's address in `local.properties` |
 | K4 | No restore from the server | A new phone starts empty even though the data is backed up | Download readings and issues after sign-in |
 | K5 | "Notice sent" is logged when the email app opens | The app cannot know whether the tenant pressed Send | Ask "Did you send it?" on return |
-| K6 | Chart has no zoom or tap-for-value; 30 days of one-minute readings draws about 43,000 points | Slow on old phones | Downsample to one point per pixel column |
+| K6 | Chart has no zoom or tap-for-value | Exact values are read from Sensors or the PDF | Tap-for-value if time allows (long histories are already thinned to 800 points) |
 | K7 | Photos show as thumbnails only; no full-screen viewer | Details are hard to see in the app (the file and the PDF have them) | Full-screen viewer |
 | K8 | The 1 → 2 database migration has no automated test | Checked by Room when the database opens, and by hand | Room migration test |
 | K9 | On-device tests are not run in CI | A broken on-device test is only caught locally | Emulator job in GitHub Actions |
@@ -104,7 +105,7 @@ Built in: descriptions on icon buttons, section titles announced as headings, a 
 | --- | --- | --- | --- |
 | Nov 24–27 | Real-world proof | Overnight run with the thermometer on a phone (K1); deploy the backend and point the app at it (K3); run M13–M21 and record results | Priyanshu; both for the manual run |
 | Nov 28–Dec 1 | Close the gaps that matter | Restore from the server (K4); sensor-lost alert (K2); "Did you send it?" (K5); migration test (K8) | Priyanshu K4, K2 · Ankita K5, K8 |
-| Dec 2–4 | Polish | Chart downsampling (K6); photo viewer (K7); TalkBack and large-text fixes found in M19–M20; emulator job in CI (K9) | Ankita K7 + accessibility · Priyanshu K6, K9 |
+| Dec 2–4 | Polish | Photo viewer (K7); TalkBack and large-text fixes found in M19–M20; emulator job in CI (K9) | Ankita K7 + accessibility · Priyanshu K9 |
 | Dec 5 | **Feature freeze** | Only bug fixes after this; tag `v1.0-rc` | Both |
 | Dec 5–7 | Paper and presentation | 1,000–1,500-word paper, final README, final slides, 8–10 minute demo rehearsed twice, backup recording | Both |
 | Dec 8 | Submit | Tag `v1.0`, final commit identified, individual reflections | Both |
@@ -115,7 +116,7 @@ Stretch items (two-pane tablet layout, humidity mold alert) stay frozen unless e
 
 | Area | Owner | Pull request |
 | --- | --- | --- |
-| Bluetooth on real hardware (picker, permissions, throttling, service types), gaps ending a cold period, city lookup, deploy blueprint, issue and hash backup in the worker, shared cold-night alert | Priyanshu | `feature/update2-sensor-and-backend` |
+| Bluetooth on real hardware (picker, permissions, battery-saving batched scan and interval setting, service types), keyboard and chart smoothness, gaps ending a cold period, city lookup, deploy blueprint, issue and hash backup in the worker, shared cold-night alert | Priyanshu | `feature/update2-sensor-and-backend` |
 | Photos with SHA-256, photo fingerprint sync, PDF evidence packet, reminders, accessibility pass and docs | Ankita | `feature/update2-evidence` |
 
 Each of us reviewed the other's pull request.

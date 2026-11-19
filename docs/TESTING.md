@@ -1,20 +1,20 @@
 # Test plan and results — Project Update 1
 
-**114 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
+**117 automated tests, all passing**, plus 12 manual test cases that walk the demo flow on the emulator.
 Run on: Windows 11, Android Studio, Pixel XL emulator (API 33 / Android 13), Node 22. Last full run: November 8, 2026.
 
 | Suite | Tests | How to run | Report |
 | --- | --- | --- | --- |
-| Android unit tests (JVM) | 90 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
+| Android unit tests (JVM) | 93 | `cd android` → `.\gradlew testDebugUnitTest` | `android/app/build/reports/tests/testDebugUnitTest/index.html` |
 | Android instrumented + Compose UI (emulator) | 11 | `cd android` → `.\gradlew connectedDebugAndroidTest` | `android/app/build/reports/androidTests/connected/debug/index.html` |
 | Backend API | 13 | `cd backend` → `npm test` | Terminal output (`# pass 13`) |
-| **Total** | **114** | | |
+| **Total** | **117** | | |
 
 CI (`.github/workflows/ci.yml`) runs the backend tests and the Android build + unit tests on every push to `main`.
 
 ---
 
-## 1. Android unit tests — 90
+## 1. Android unit tests — 93
 
 Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 
@@ -86,7 +86,7 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U39 | live mode emits on the configured interval | Live monitoring ticks correctly |
 | U40 | interpolation is continuous at the knots | No jumps in the simulated curve |
 
-### LimitSeriesAndChartDataTest — 5 · what the chart draws
+### LimitSeriesAndChartDataTest — 8 · what the chart draws
 
 | # | Test | What it proves |
 | --- | --- | --- |
@@ -95,6 +95,9 @@ Pure Kotlin, no emulator needed. They cover the logic a tenant's PDF depends on.
 | U43 | nextBoundary moves day → night → next day | Boundary walk is correct |
 | U44 | chart data finds violation spans and axis bounds | Shading covers only real violations |
 | U45 | chart data with no readings is empty but has a limit line | Empty state is handled |
+| U91 | a short series is drawn unchanged | Downsampling never touches a normal day of readings |
+| U92 | a month of one-minute readings is thinned to at most 800 points, keeping the coldest dip, both ends and time order | The chart stays smooth without hiding a violation |
+| U93 | violation spans and axis bounds use every reading, not the thinned line | Shading and the y-axis are exact even when the line is thinned |
 
 ### ConvertersAndDecodersTest — 9 · storage, BLE and validation
 
