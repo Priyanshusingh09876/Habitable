@@ -151,6 +151,7 @@ Full description, data model and the end-to-end data path: [docs/ARCHITECTURE.md
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layers, data model, data flow, accessibility and privacy notes
 - [docs/WORKING_AGREEMENT.md](docs/WORKING_AGREEMENT.md) — roles, scrum-master rotation, branching and review rules
 - [docs/AI_USE.md](docs/AI_USE.md) — generative AI disclosure
+- [docs/UPDATE2.md](docs/UPDATE2.md), [docs/Update2_Slides.pptx](docs/Update2_Slides.pptx) (PDF: [Update2_Slides.pdf](docs/Update2_Slides.pdf)), [docs/UPDATE2_SCRIPT.md](docs/UPDATE2_SCRIPT.md) — Project Update 2 report, slides, presenter script and code map
 - [docs/Project_Proposal_Oct20.pdf](docs/Project_Proposal_Oct20.pdf) — the graded proposal
 
 ## Privacy and security
