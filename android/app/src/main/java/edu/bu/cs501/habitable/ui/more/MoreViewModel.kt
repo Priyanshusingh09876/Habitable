@@ -109,7 +109,7 @@ class MoreViewModel(
         busy.value = false
     }
 
-    fun signOut() = viewModelScope.launch { settings.setAuth(null, null); message.value = "Signed out" }
+    fun signOut() = viewModelScope.launch { settings.setAuth(null, null); message.value = "Logged out. Your data stays on this phone." }
 
     fun syncNow() = viewModelScope.launch {
         busy.value = true

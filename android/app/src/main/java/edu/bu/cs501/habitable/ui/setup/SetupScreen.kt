@@ -1,5 +1,6 @@
 package edu.bu.cs501.habitable.ui.setup
 
+import androidx.compose.foundation.layout.heightIn
 import edu.bu.cs501.habitable.domain.text.TextInput
 import edu.bu.cs501.habitable.ui.components.fieldSupport
 import androidx.compose.foundation.text.KeyboardActions
@@ -147,7 +148,7 @@ fun SetupScreen(viewModel: SetupViewModel, onDone: () -> Unit) {
             enabled = !form.saving,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Heat, contentColor = Color.White),
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).height(54.dp).testTag("btn_continue"),
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).heightIn(min = 54.dp).testTag("btn_continue"),
         ) {
             if (form.saving) {
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)

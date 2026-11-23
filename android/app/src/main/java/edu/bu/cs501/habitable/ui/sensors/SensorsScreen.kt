@@ -1,5 +1,7 @@
 package edu.bu.cs501.habitable.ui.sensors
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.text.style.TextAlign
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -166,23 +168,29 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
                     }
                 }
                 Spacer(Modifier.height(14.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Stacked, full width, and at least 52 dp tall but free to grow: the labels never
+                // get cut off on small phones or with a large system font.
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (state.monitoring) {
                         OutlinedButton(
                             onClick = { SensorForegroundService.stop(context) },
                             shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.weight(1f).height(50.dp).testTag("btn_stop"),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("btn_stop"),
                         ) {
-                            Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.sensors_stop))
+                            Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.sensors_stop), fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                         }
                     } else {
                         Button(
                             onClick = startMonitoring,
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Navy),
-                            modifier = Modifier.weight(1f).height(50.dp).testTag("btn_start"),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("btn_start"),
                         ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.sensors_start))
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.sensors_start), fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                         }
                     }
                     Button(
@@ -191,11 +199,13 @@ fun SensorsScreen(viewModel: SensorsViewModel) {
                         enabled = !state.busy && state.simulated,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Heat),
-                        modifier = Modifier.weight(1f).height(50.dp).testTag("btn_replay"),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("btn_replay"),
                     ) {
-                        if (state.busy) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
-                        else Icon(Icons.Filled.Replay, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.sensors_replay_night))
+                        if (state.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                        else Icon(Icons.Filled.Replay, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.sensors_replay_night), fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                     }
                 }
             }

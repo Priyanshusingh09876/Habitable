@@ -1,5 +1,8 @@
 package edu.bu.cs501.habitable.ui.more
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import edu.bu.cs501.habitable.domain.text.TextInput
 import edu.bu.cs501.habitable.ui.components.fieldSupport
@@ -117,6 +120,30 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
 
     // Thermometer picker: ask for the Bluetooth permissions, then scan and show what is nearby.
     var showPicker by rememberSaveable { mutableStateOf(false) }
+    var showLogout by rememberSaveable { mutableStateOf(false) }
+    if (showLogout) {
+        AlertDialog(
+            onDismissRequest = { showLogout = false },
+            icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
+            title = { Text("Log out?") },
+            text = {
+                Text(
+                    "Backup to the server stops until you sign in again. Your readings, issues and photos stay on this phone; " +
+                        "anything not yet synced is uploaded after you sign back in."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogout = false
+                        viewModel.signOut()
+                    },
+                    modifier = Modifier.testTag("btn_logout_confirm"),
+                ) { Text("Log out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(onClick = { showLogout = false }) { Text("Cancel") } },
+        )
+    }
     val openPicker = {
         val problem = BleSupport.problem(context)
         if (problem != null) viewModel.showMessage(problem)
@@ -350,23 +377,32 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
                         enabled = canSignIn,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Navy),
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                    ) { Text("Sign in or create account", fontWeight = FontWeight.Bold) }
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    ) { Text("Sign in or create account", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
                     Spacer(Modifier.height(6.dp))
                     Text("Password must be at least 8 characters. Only readings and photo hashes are uploaded.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
                             onClick = { viewModel.syncNow() },
                             enabled = !state.busy,
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Navy),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         ) {
-                            Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.more_sync_now))
+                            Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.more_sync_now), fontWeight = FontWeight.SemiBold)
                         }
-                        OutlinedButton(onClick = { viewModel.signOut() }, shape = RoundedCornerShape(14.dp), modifier = Modifier.weight(1f).height(48.dp)) { Text("Sign out") }
+                        OutlinedButton(
+                            onClick = { showLogout = true },
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("btn_logout"),
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp))
+                            Text("Log out", fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             }
@@ -385,7 +421,7 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
                 onClick = { viewModel.clearDemoData() },
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = HabitableColors.HeatInk),
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(50.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).heightIn(min = 52.dp),
             ) {
                 Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.more_clear_demo))
