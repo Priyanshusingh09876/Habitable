@@ -1,5 +1,6 @@
 package edu.bu.cs501.habitable.ui
 
+import edu.bu.cs501.habitable.di.resetEverything
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -45,7 +46,10 @@ class HabitableViewModelFactory(
         modelClass.isAssignableFrom(SetupViewModel::class.java) ->
             SetupViewModel(container.apartments, container.settings, container.weather)
         modelClass.isAssignableFrom(MoreViewModel::class.java) ->
-            MoreViewModel(container.apartments, container.settings, container.sync, container.readings, container.bleScanner, container.photos)
+            MoreViewModel(
+                container.apartments, container.settings, container.sync, container.readings, container.bleScanner, container.photos,
+                resetApp = { container.resetEverything() },
+            )
         else -> throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
     } as T
 }

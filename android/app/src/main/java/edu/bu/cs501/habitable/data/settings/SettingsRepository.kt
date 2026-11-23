@@ -73,6 +73,9 @@ class SettingsRepository(private val context: Context) {
         if (email == null) it.remove(Keys.USER_EMAIL) else it[Keys.USER_EMAIL] = email
     }
     suspend fun setLastSync(millis: Long) = context.dataStore.edit { it[Keys.LAST_SYNC] = millis }
+    /** Forget every setting, as after a fresh install (used by "Start over"). */
+    suspend fun clearAll() = context.dataStore.edit { it.clear() }
+
     suspend fun setOnboarded(done: Boolean) = context.dataStore.edit { it[Keys.ONBOARDED] = done }
 }
 
