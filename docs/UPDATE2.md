@@ -18,7 +18,6 @@ Slides: [Update2_Slides.pptx](Update2_Slides.pptx) · Presenter script and code 
 | Privacy, permissions, API keys, storage, security | §9 |
 | Repository and agile evidence, scrum master, scope changes | §8, §10; scope changes in §2 |
 | Both students participate | §8 and the pull requests listed there |
-| Generative AI and outside resources | [AI_USE.md](AI_USE.md); README "Outside resources and licenses" |
 
 ## Since Update 1 (November 10)
 

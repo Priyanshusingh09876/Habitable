@@ -94,7 +94,6 @@ Paths start at `android/app/src/main/java/edu/bu/cs501/habitable/`. Open the fil
 | --- | --- |
 | Show your commits / PRs | GitHub → Pull requests → closed: #26–#31 for this update, each reviewed and merged by the other student |
 | Scrum master? | Priyanshu the week of Nov 17, Ankita the week of Nov 24 |
-| How did you use AI? | Say it plainly, as in [AI_USE.md](AI_USE.md): Claude drafted much of the code and docs from our stories and bug reports; we decided the scope and design, ran and tested everything, reviewed every PR, and can explain each part. Then show you can: open the file for the feature you own and walk through it |
 
 **Each of us should be able to open and explain these without notes:**
 - **Priyanshu:** `BleSensorSource.kt`, `ReadingsRepository.ingest`, `ViolationDetector.kt`, `WeatherRepository.kt`, `TemperatureChart.kt`, `HabitableNavHost.kt`, `NewIssueViewModelTest.kt`.
