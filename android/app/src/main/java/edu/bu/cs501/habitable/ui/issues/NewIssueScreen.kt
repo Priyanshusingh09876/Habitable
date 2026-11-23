@@ -1,5 +1,6 @@
 package edu.bu.cs501.habitable.ui.issues
 
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import edu.bu.cs501.habitable.domain.text.TextInput
@@ -155,7 +156,7 @@ fun NewIssueScreen(
                 enabled = form.canSave,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Heat, contentColor = Color.White),
-                modifier = Modifier.fillMaxWidth().height(54.dp).testTag("btn_save_issue"),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp).testTag("btn_save_issue"),
             ) { Text(stringResource(R.string.issue_save), fontWeight = FontWeight.Bold) }
         }
     }

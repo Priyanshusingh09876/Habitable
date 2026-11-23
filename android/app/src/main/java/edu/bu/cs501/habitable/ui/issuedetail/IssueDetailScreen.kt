@@ -1,5 +1,6 @@
 package edu.bu.cs501.habitable.ui.issuedetail
 
+import androidx.compose.foundation.layout.heightIn
 import edu.bu.cs501.habitable.domain.text.TextInput
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -336,7 +337,7 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                             },
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Heat, contentColor = Color.White),
-                            modifier = Modifier.fillMaxWidth().height(52.dp).testTag("btn_advance"),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("btn_advance"),
                         ) {
                             Icon(actionIcon(s.nextAction), contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -348,7 +349,7 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                     OutlinedButton(
                         onClick = { viewModel.resolve() },
                         shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(50.dp).testTag("btn_resolve"),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("btn_resolve"),
                     ) {
                         Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = HabitableColors.Good, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -386,7 +387,7 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                     OutlinedButton(
                         onClick = takePhoto,
                         shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(50.dp).testTag("btn_add_photo"),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("btn_add_photo"),
                     ) {
                         Icon(Icons.Filled.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -400,7 +401,7 @@ fun IssueDetailScreen(viewModel: IssueDetailViewModel, onBack: () -> Unit) {
                     enabled = !exporting,
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = HabitableColors.Navy, contentColor = Color.White),
-                    modifier = Modifier.fillMaxWidth().height(52.dp).testTag("btn_export_pdf"),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("btn_export_pdf"),
                 ) {
                     if (exporting) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
