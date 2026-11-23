@@ -218,6 +218,13 @@ fun HabitableNavHost(
                 MoreScreen(
                     viewModel = viewModel(factory = factory),
                     onEditApartment = { navController.navigate(Route.Setup) },
+                    // After "Start over" the app is empty: show setup as the only screen.
+                    onStartOver = {
+                        navController.navigate(Route.Setup) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
             composable<Route.NewIssue> {

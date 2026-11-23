@@ -31,6 +31,8 @@ class MoreViewModel(
     private val readings: ReadingsRepository,
     private val scanner: BleDeviceScanner,
     private val photos: PhotosRepository,
+    /** Wipes everything back to a fresh install; see AppContainer.resetEverything. */
+    private val resetApp: suspend () -> Unit = {},
 ) : ViewModel() {
 
     private val message = MutableStateFlow<String?>(null)
@@ -135,6 +137,17 @@ class MoreViewModel(
             is SyncRepository.Result.Failed -> r.message
         } + issuesPart
         busy.value = false
+    }
+
+    /** Deletes all data and settings, then [onDone] (which opens setup). */
+    fun startOver(onDone: () -> Unit) = viewModelScope.launch {
+        busy.value = true
+        try {
+            resetApp()
+        } finally {
+            busy.value = false
+        }
+        onDone()
     }
 
     fun clearDemoData() = viewModelScope.launch {

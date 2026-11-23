@@ -1,5 +1,6 @@
 package edu.bu.cs501.habitable.ui.more
 
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.ui.text.style.TextAlign
@@ -107,7 +108,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
+fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit, onStartOver: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -121,6 +122,31 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
     // Thermometer picker: ask for the Bluetooth permissions, then scan and show what is nearby.
     var showPicker by rememberSaveable { mutableStateOf(false) }
     var showLogout by rememberSaveable { mutableStateOf(false) }
+    var showStartOver by rememberSaveable { mutableStateOf(false) }
+    if (showStartOver) {
+        AlertDialog(
+            onDismissRequest = { showStartOver = false },
+            icon = { Icon(Icons.Filled.RestartAlt, contentDescription = null) },
+            title = { Text("Start over?") },
+            text = {
+                Text(
+                    "This deletes everything on this phone (apartment, landlord, readings, issues, photos and settings) " +
+                        "and opens setup again, like a fresh install. It cannot be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showStartOver = false
+                        SensorForegroundService.stop(context)
+                        viewModel.startOver(onStartOver)
+                    },
+                    modifier = Modifier.testTag("btn_start_over_confirm"),
+                ) { Text("Delete and start over", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(onClick = { showStartOver = false }) { Text("Cancel") } },
+        )
+    }
     if (showLogout) {
         AlertDialog(
             onDismissRequest = { showLogout = false },
@@ -425,6 +451,17 @@ fun MoreScreen(viewModel: MoreViewModel, onEditApartment: () -> Unit) {
             ) {
                 Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.more_clear_demo))
+            }
+            OutlinedButton(
+                onClick = { showStartOver = true },
+                enabled = !state.busy,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).heightIn(min = 52.dp).testTag("btn_start_over"),
+            ) {
+                Icon(Icons.Filled.RestartAlt, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
+                Text("Start over (show setup again)", textAlign = TextAlign.Center)
             }
             Spacer(Modifier.height(8.dp))
         }
